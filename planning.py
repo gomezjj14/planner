@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: latin-1 -*-
 import pandas as pd
 
 import plotly.figure_factory as ff
@@ -53,7 +53,7 @@ class ValidadorPlanificacion(Validador):
         return self.invalidos==[]
 
 class ValidadorPlanning(Validador):
-    r'''Valida los estados que vencen en los pr�ximos n d�as para preparar la planning de un sprint'''
+    r'''Valida los estados que vencen en los proximos n dias para preparar la planning de un sprint'''
     @staticmethod
     def calcula_fechas(dias=14, offset=0):
         return (datetime.datetime.today()+datetime.timedelta(days=offset), datetime.datetime.today()+ datetime.timedelta(days=offset + dias))
@@ -85,13 +85,25 @@ class ValidadorFechaVencimiento(Validador):
     def isValido(self):
         return self.tarea.fecha_vencimiento >= datetime.datetime.today()
     
+class ValidadorFechaEntrega(Validador):
+    r'''Valida que la fecha de entrega est� asignada'''
+    @staticmethod
+    def batch(tareas):
+        validadores=[ValidadorFechaEntrega(tarea) for tarea in tareas]
+        return [ str(val.tarea) for val in validadores if not val.isValido()]
+    
+    def __init__(self,t):
+        Validador.__init__(self,t)
+
+    def isValido(self):
+        return any(x for x in self.tarea.subtareas if x.codigo=='Entregar a IBD')
 
 
 
 class Arbol(ttk.Frame):
     def __init__(self,main_window):
         super().__init__(main_window)
-        main_window.title("Vista de árbol en Tkinter")
+        main_window.title("Vista de �rbol en Tkinter")
         
         self.grid(column=0, row=0, sticky="ns")
         self.treeview = ttk.Treeview(self, columns=("inicio","fin", "responsable"))
@@ -114,7 +126,7 @@ df_gant_estado=[]
 df_gant_responsable=[]
 df_gant_por_responsable=[]
 if __name__ == "__main__":
-    df=pd.read_excel(r'FI - Area 1 (7).xlsx', skiprows=4)
+    df=pd.read_excel(r'FI - Area 1.xlsx', skiprows=4)
 
     sin_fecha=[]
     tareas=[]
@@ -129,6 +141,22 @@ if __name__ == "__main__":
                 df_gant_por_responsable+=t.to_dict_for_responsable()
                 tareas.append(t)
 
+    print("** Mostrar **")
+    print(" 1.- Tareas sin fecha de entrega")
+    
+    option=int(input("> "))
+
+    df=pd.DataFrame([s for t in tareas for s in t.as_dict()])
+    
+    if option==1:
+        print('\n'.join(ValidadorFechaEntrega.batch(tareas)))
+        print(df)
+
+
+
+    sys.exit()
+
+
     print("** Todas **")
     print('\n'.join([ str(a) for a in tareas]))
         
@@ -140,16 +168,16 @@ if __name__ == "__main__":
     
 
     print("** Tareas planning **")
-    desde, hasta=ValidadorPlanning.calcula_fechas(28, 0)
+    desde, hasta=ValidadorPlanning.calcula_fechas(14, 0)
     print('\n'.join(ValidadorPlanning.batch(tareas,desde, hasta)))
     
 
 # result = ask_multiple_choice_question(
-#     "¿Qué quieres hacer?",
+#     "�Qu� quieres hacer?",
 #     [
 #         "Subtareas sin planificar",
 #         "Tareas vencidas",
-#         "Planning para las próximas semanas"
+#         "Planning para las pr�ximas semanas"
 #     ]
 # )
 # 
