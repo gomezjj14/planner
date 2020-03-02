@@ -34,17 +34,24 @@ class Subtarea:
 
 
 class Tarea:
+    traduccion = {'DTE + PPU + RPI':'DTE + PPU',
+        'DTE + PPU +RPI':'DTE + PPU',
+        'DTE + PPU  +RPI':'DTE + PPU',
+        'DTE + PPU':'DTE + PPU',
+        'DTE + PPU  Rework':'DTE + PPU',
+        'RPI + QA':'RPI',
+        'RPI':'RPI',
+        'RPI':'RPI Rework',
+        'RPI QA':'RPI',
+        'QA del RPI':'RPI',
+        'QA RPI':'RPI',
+        'QA':'RPI',
+        'QA + RPI':'RPI'}
     dict_estados_tareas=OrderedDict({"VALORACION - DEF":[{"Tarea":"Elaborar DEF+PF+DPI", "start":'DEF', "end":'DEF', "Responsable":'RF'}], 
                                      "DESARROLLO- EFF":[{"Tarea":"Elaborar EFF", "start":'DEF', "end":'EFF', "Responsable":"RT"}],
-                                     "DESARROLLO - DTE":[{"Tarea":"Construcción+Prueba Unitaria", "start":'EFF', "end":'DTE + PPU', "Responsable":"RD"},
-                                                         {"Tarea":"Construcción+Prueba Unitaria", "start":'EFF', "end":'DTE + PPU + RPI', "Responsable":"RD"}],
+                                     "DESARROLLO - DTE":[{"Tarea":"Construcción+Prueba Unitaria", "start":'EFF', "end":'DTE + PPU', "Responsable":"RD"}],
                                      "ACN - INTEGRACION":[{"Tarea":"Q&A", "start":'DTE + PPU', "end":'RPI', "Responsable":"QA"},
-                                                          {"Tarea":"Q&A", "start":'DTE + PPU + RPI', "end":'RPI + QA', "Responsable":"QA"},
-                                                          {"Tarea":"Q&A", "start":'DTE + PPU + RPI', "end":'RPI', "Responsable":"QA"},
-                                                          {"Tarea":"Q&A", "start":'DTE + PPU', "end":'RPI + QA', "Responsable":"QA"},
-                                                          {"Tarea":"Q&A", "start":'DTE + PPU + RPI', "end":'RPI + QA', "Responsable":"QA"},
-                                                          {"Tarea":"Entregar a IBD", "start":'RPI', "end":'Due date Entrega', "Responsable":"RF"},
-                                                          {"Tarea":"Entregar a IBD", "start":'RPI + QA', "end":'Due date Entrega', "Responsable":"RF"}]
+                                                          {"Tarea":"Entregar a IBD", "start":'RPI', "end":'Due date Entrega', "Responsable":"RF"}]
                                      })    
         
     def __init__(self,codigo,descripcion, fecha_creacion, checklist=None, estado="VALORACION - DEF", fecha_vencimiento=None, responsables=None):
@@ -68,7 +75,7 @@ class Tarea:
         global ck    
             
         print(checklist)
-        checklist_to_dict=dict( [ [a.lstrip().rstrip() for a in  item.split('-')] for item in checklist.split(';') if '-' in item])
+        checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')] for item in checklist.split(';') if '-' in item])
         self.subtareas=[]
         ck=ck.union(checklist_to_dict.keys())
         print("-->", "\n".join(ck))

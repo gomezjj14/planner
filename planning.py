@@ -126,7 +126,7 @@ df_gant_estado=[]
 df_gant_responsable=[]
 df_gant_por_responsable=[]
 if __name__ == "__main__":
-    df=pd.read_excel(r'FI - Area 1.xlsx', skiprows=4)
+    df=pd.read_excel(r'FI - Area 2.xlsx', skiprows=4)
 
     sin_fecha=[]
     tareas=[]
@@ -141,30 +141,30 @@ if __name__ == "__main__":
                 df_gant_por_responsable+=t.to_dict_for_responsable()
                 tareas.append(t)
 
-    print("** Mostrar **")
-    print(" 1.- Tareas sin fecha de entrega")
-    
-    option=int(input("> "))
-
-    df=pd.DataFrame([s for t in tareas for s in t.as_dict()])
-    
-    if option==1:
-        print('\n'.join(ValidadorFechaEntrega.batch(tareas)))
-        print(df)
-
-
-
-    sys.exit()
-
-
-    print("** Todas **")
-    print('\n'.join([ str(a) for a in tareas]))
-        
-    print("** Subtareas sin planificar **")
-    print('\n'.join(ValidadorPlanificacion.batch(tareas)))
-        
-    print("** Tareas Vencidas **")
-    print('\n'.join(ValidadorFechaVencimiento.batch(tareas)))
+#     print("** Mostrar **")
+#     print(" 1.- Tareas sin fecha de entrega")
+#     
+#     option=int(input("> "))
+# 
+#     df=pd.DataFrame([s for t in tareas for s in t.as_dict()])
+#     
+#     if option==1:
+#         print('\n'.join(ValidadorFechaEntrega.batch(tareas)))
+#         print(df)
+# 
+# 
+# 
+#     sys.exit()
+# 
+# 
+#     print("** Todas **")
+#     print('\n'.join([ str(a) for a in tareas]))
+#         
+#     print("** Subtareas sin planificar **")
+#     print('\n'.join(ValidadorPlanificacion.batch(tareas)))
+#         
+#     print("** Tareas Vencidas **")
+#     print('\n'.join(ValidadorFechaVencimiento.batch(tareas)))
     
 
     print("** Tareas planning **")
