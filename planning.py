@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 import pandas as pd
+import tempfile
 
 import plotly.figure_factory as ff
 
@@ -8,6 +9,7 @@ from tkinter import *
 from tarea import *
 from abc import abstractmethod, ABC
 import datetime
+import os
 
 
 def fixed_map(option):
@@ -28,75 +30,7 @@ def fixed_map(option):
         
 
 
-class Validador(ABC):
-    def __init__(self, t):
-        self.tarea=t
-        self.invalidos=[]
-        self.validos=[]
-        
-    @abstractmethod
-    def isValido(self):
-        pass
-    
-class ValidadorPlanificacion(Validador):
-    '''Valida que todas las tareas esten planificadas'''
-    @staticmethod
-    def batch(tareas):
-        invalidos=[(t.codigo,ValidadorPlanificacion(t).invalidos) for t in tareas ]
-        return [tarea + '->' + sub for tarea,subs in invalidos for sub in subs]
 
-    def __init__(self,t):
-        Validador.__init__(self,t)
-        self.invalidos=[str(s) for s in self.tarea.subtareas if not s.isComplete()]
-        
-    def isValido(self):
-        return self.invalidos==[]
-
-class ValidadorPlanning(Validador):
-    r'''Valida los estados que vencen en los proximos n dias para preparar la planning de un sprint'''
-    @staticmethod
-    def calcula_fechas(dias=14, offset=0):
-        return (datetime.datetime.today()+datetime.timedelta(days=offset), datetime.datetime.today()+ datetime.timedelta(days=offset + dias))
-    
-    @staticmethod
-    def batch(tareas, desde, hasta):
-        validos=[(t.codigo,ValidadorPlanning(t, desde, hasta).validos) for t in tareas ]
-        return [tarea + '->' + sub for tarea,subs in validos for sub in subs]
-        
-    def __init__(self, t, desde, hasta):
-        Validador.__init__(self,t)
-        self.desde=desde
-        self.hasta=hasta
-        self.validos=[str(s) for s in self.tarea.subtareas if s.isComplete() and s.fecha_hasta >= self.desde and s.fecha_hasta <= self.hasta]
-    
-    def isValido(self):
-        return self.validos!=[]    
-    
-class ValidadorFechaVencimiento(Validador):
-    r'''Valida que la fecha de vencimiento no se haya cumplido'''
-    @staticmethod
-    def batch(tareas):
-        validadores=[ValidadorFechaVencimiento(tarea) for tarea in tareas]
-        return [ str(val.tarea) for val in validadores if not val.isValido()]
-    
-    def __init__(self,t):
-        Validador.__init__(self,t)
-
-    def isValido(self):
-        return self.tarea.fecha_vencimiento >= datetime.datetime.today()
-    
-class ValidadorFechaEntrega(Validador):
-    r'''Valida que la fecha de entrega esté asignada'''
-    @staticmethod
-    def batch(tareas):
-        validadores=[ValidadorFechaEntrega(tarea) for tarea in tareas]
-        return [ str(val.tarea) for val in validadores if not val.isValido()]
-    
-    def __init__(self,t):
-        Validador.__init__(self,t)
-
-    def isValido(self):
-        return any(x for x in self.tarea.subtareas if x.codigo=='Entregar a IBD')
 
 
 
@@ -126,20 +60,119 @@ df_gant_estado=[]
 df_gant_responsable=[]
 df_gant_por_responsable=[]
 if __name__ == "__main__":
-    df=pd.read_excel(r'FI - Area 2.xlsx', skiprows=4)
+    
+    from tkinter import Tk
+    from tkinter.filedialog import askopenfilename
 
-    sin_fecha=[]
+    Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+    filename = askopenfilename() # show an "Open" dialog box and return the path to the selected file
+    print(filename)
+    
+    
+    df=pd.read_excel(filename, skiprows=4)
+
+    '''Cargar tareas'''
     tareas=[]
     for index, x in df.iterrows():
         if(re.match(r'S-[0-9]{4}.*' , x['Nombre de la tarea'])):
             t=Tarea.from_record(x)
-            if not t.fecha_vencimiento:
-                sin_fecha.append(t)
-            elif t.subtareas:
-                df_gant_estado+=t.to_dict_by_estado()
-                df_gant_responsable+=t.to_dict_by_responsable()
-                df_gant_por_responsable+=t.to_dict_for_responsable()
-                tareas.append(t)
+            tareas.append(t)
+
+
+            
+
+
+
+    
+    out=r'C:\Users\j.gomez.de.la.cueva\OneDrive - Accenture\python\planner\test.xlsx'
+    writer = pd.ExcelWriter(out, engine='xlsxwriter')
+    map_excel={}
+    
+    ''' Mostrar tareas '''
+            
+    print('** Todas las tareas **')
+    print(TareaView.headers()) 
+    print(''.join([TareaView.show(t) for t in tareas if t.subtareas]))
+
+
+    new_list= []
+    for t in tareas:
+        if t.subtareas:
+            new_list += TareaView.show_as_lists(t)
+    
+    map_excel['Todas']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
+
+            
+    print('** Tareas sin planificar **')
+    print(TareaView.headers()) 
+    print(''.join([TareasSinPlanificarView.show(t) for t in tareas if t.subtareas]))
+
+    new_list= []
+    for t in tareas:
+        if t.subtareas:
+            new_list += TareasSinPlanificarView.show_as_lists(t)    
+
+    map_excel['Sin planificar']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
+   
+    
+    print('** Planning **') 
+    print(TareaView.headers()) 
+    print(''.join([TareasPlanning.show(t,15) for t in tareas if t.subtareas]))
+
+    new_list= []
+    for t in tareas:
+        if t.subtareas:
+            new_list += TareasPlanning.show_as_lists(t,2)    
+
+
+    map_excel['Planning']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
+   
+   
+    for name, tab in map_excel.items():
+        tab.to_excel(writer,sheet_name=name,index=False)     
+    
+        
+    writer.save()
+    os.system(r'start excel.exe "' + out +'"')
+    
+    
+#     traduccion = {'DTE + PPU + RPI':'DTE + PPU',
+#         'DTE + PPU +RPI':'DTE + PPU',
+#         'DTE + PPU  +RPI':'DTE + PPU',
+#         'DTE + PPU':'DTE + PPU',
+#         'DTE + PPU  Rework':'DTE + PPU',
+#         'RPI + QA':'RPI',
+#         'RPI':'RPI',
+#         'RPI':'RPI Rework',
+#         'RPI QA':'RPI',
+#         'QA del RPI':'RPI',
+#         'QA RPI':'RPI',
+#         'QA':'RPI',
+#         'QA + RPI':'RPI'}
+    print("Etiquetas:")
+    print(Tarea.ck)
+    print(Tarea.traduccion.keys())
+    for x in Tarea.ck:
+        if x not in Tarea.traduccion.values():
+            print("* [" + x +"]")
+        else:
+            print("  [" + x +"]")
+#     for t in tareas:
+#         if t.subtareas:
+#             print(TareasPlanning.show(t,15), end='') 
+            
+            
+            
+            
+            
+            
+#             if not t.fecha_vencimiento:
+#                 sin_fecha.append(t)
+#             elif t.subtareas:
+#                 df_gant_estado+=t.to_dict_by_estado()
+#                 df_gant_responsable+=t.to_dict_by_responsable()
+#                 df_gant_por_responsable+=t.to_dict_for_responsable()
+#                 tareas.append(t)
 
 #     print("** Mostrar **")
 #     print(" 1.- Tareas sin fecha de entrega")
@@ -167,9 +200,6 @@ if __name__ == "__main__":
 #     print('\n'.join(ValidadorFechaVencimiento.batch(tareas)))
     
 
-    print("** Tareas planning **")
-    desde, hasta=ValidadorPlanning.calcula_fechas(14, 0)
-    print('\n'.join(ValidadorPlanning.batch(tareas,desde, hasta)))
     
 
 # result = ask_multiple_choice_question(
@@ -183,31 +213,31 @@ if __name__ == "__main__":
 # 
 # print("User's response was: {}".format(repr(result)))
 
-style = ttk.Style()
-style.map('Treeview', foreground=fixed_map('foreground'),
-          background=fixed_map('background'))
-main_window = Tk()
-app = Arbol(main_window)
-for t in tareas:
-    nodo=app.add_tarea(t)
-    for s in t.subtareas:
-        app.add_subtarea(nodo, s)
-        
-        
-app.mainloop()
-
-
-
-
-fig = ff.create_gantt(df_gant_estado, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
-fig.show()
-  
-fig = ff.create_gantt(df_gant_responsable, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
-fig.show()
-  
-df_ordered=sorted(df_gant_por_responsable, key= lambda k: k['Task'])
-df_ordered
-fig = ff.create_gantt(df_ordered, index_col='Resource', show_colorbar=True, group_tasks=False, showgrid_x=True)
-fig.show()
+# style = ttk.Style()
+# style.map('Treeview', foreground=fixed_map('foreground'),
+#           background=fixed_map('background'))
+# main_window = Tk()
+# app = Arbol(main_window)
+# for t in tareas:
+#     nodo=app.add_tarea(t)
+#     for s in t.subtareas:
+#         app.add_subtarea(nodo, s)
+#         
+#         
+# app.mainloop()
+# 
+# 
+# 
+# 
+# fig = ff.create_gantt(df_gant_estado, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
+# fig.show()
+#   
+# fig = ff.create_gantt(df_gant_responsable, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
+# fig.show()
+#   
+# df_ordered=sorted(df_gant_por_responsable, key= lambda k: k['Task'])
+# df_ordered
+# fig = ff.create_gantt(df_ordered, index_col='Resource', show_colorbar=True, group_tasks=False, showgrid_x=True)
+# fig.show()
 
 
