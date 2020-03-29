@@ -8,6 +8,8 @@ from collections import OrderedDict
 import math
 import datetime
 from enum import Enum
+from gestion import Gestion, Tarea as TareaGestion
+# from gestion import Gestion
 
 
 
@@ -74,12 +76,17 @@ class Tarea:
         self.fecha_vencimiento=datetime.datetime.strptime(fecha_vencimiento, '%d/%m/%Y') if type(fecha_vencimiento)==str or (type(fecha_vencimiento)==float and not math.isnan(fecha_vencimiento))  else None
         self.create_responsables(responsables)
         self.create_subtareas(checklist)
-        
+#         self.gestion=Gestion()
+#         self.gestion.createTarea(codigo)      
 
     @classmethod
     def from_record(cls, r):
         return cls(r['Nombre de la tarea'][0:12], r['Nombre de la tarea'][13:], r['Fecha de creación'], r['Elementos de la lista de comprobación'], r['Nombre del depósito'], r['Fecha de vencimiento'], r['Descripción'])
     
+    def setTareaGestion(self):
+        self.tareaGestion=Gestion.createTarea(self.codigo)
+        
+        
     def create_subtareas(self, checklist):
         print(checklist)
         checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')] for item in checklist.split(';') if '-' in item])
@@ -123,6 +130,8 @@ class Tarea:
         return [dict(Task=sub.responsable, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.codigo ) \
             for sub in self.subtareas if sub.isComplete()]
         
+#     def validar(self):
+#         if self.gestion
 
 class TareaView:
     @classmethod

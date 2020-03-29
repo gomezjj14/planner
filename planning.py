@@ -12,17 +12,17 @@ import datetime
 import os
 
 
-def fixed_map(option):
-    # Fix for setting text colour for Tkinter 8.6.9
-    # From: https://core.tcl.tk/tk/info/509cafafae
-    #
-    # Returns the style map for 'option' with any styles starting with
-    # ('!disabled', '!selected', ...) filtered out.
-
-    # style.map() returns an empty list for missing options, so this
-    # should be future-safe.
-    return [elm for elm in style.map('Treeview', query_opt=option) if
-      elm[:2] != ('!disabled', '!selected')]
+# def fixed_map(option):
+#     # Fix for setting text colour for Tkinter 8.6.9
+#     # From: https://core.tcl.tk/tk/info/509cafafae
+#     #
+#     # Returns the style map for 'option' with any styles starting with
+#     # ('!disabled', '!selected', ...) filtered out.
+# 
+#     # style.map() returns an empty list for missing options, so this
+#     # should be future-safe.
+#     return [elm for elm in style.map('Treeview', query_opt=option) if
+#       elm[:2] != ('!disabled', '!selected')]
 
 
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     '''Cargar tareas'''
     tareas=[]
     for index, x in df.iterrows():
-        if(re.match(r'S-[0-9]{4}.*' , x['Nombre de la tarea'])):
+        if(re.match(r'S-[0-9]{4}-[0-9]{5}.*' , x['Nombre de la tarea'])):
             t=Tarea.from_record(x)
             tareas.append(t)
 
