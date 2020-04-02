@@ -10,7 +10,7 @@ from tarea import *
 from abc import abstractmethod, ABC
 import datetime
 import os
-
+from pprint import pprint
 
 # def fixed_map(option):
 #     # Fix for setting text colour for Tkinter 8.6.9
@@ -59,18 +59,30 @@ class Arbol(ttk.Frame):
 df_gant_estado=[]
 df_gant_responsable=[]
 df_gant_por_responsable=[]
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     
     from tkinter import Tk
     from tkinter.filedialog import askopenfilename
 
     Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-    filename = askopenfilename() # show an "Open" dialog box and return the path to the selected file
-    print(filename)
+    planner_filename = askopenfilename(title = "Extracción de planner", filetypes = (("excel","*.xlsx"),("all files","*.*"))) # show an "Open" dialog box and return the path to the selected file
+    print(planner_filename)
+    df=pd.read_excel(planner_filename, skiprows=4)
+ 
+    gestion_filename = askopenfilename(title = "Excel de Gestión", filetypes = (("excel","*.xlsx"),("all files","*.*"))) # show an "Open" dialog box and return the path to the selected file
+    print(gestion_filename)   
+    Gestion.datasource=gestion_filename
+    Gestion.create()
     
     
-    df=pd.read_excel(filename, skiprows=4)
-
     '''Cargar tareas'''
     tareas=[]
     for index, x in df.iterrows():
@@ -78,8 +90,21 @@ if __name__ == "__main__":
             t=Tarea.from_record(x)
             tareas.append(t)
 
+    print('** Validando tareas **')
+    validaciones ={}
+    for t in tareas:
+        if t.estado in Tarea.dict_estados_tareas.keys():
+            for razon in t.validate():
+                validaciones[razon.split(':')[0]]= validaciones.get(razon.split(':')[0], []) + [t.codigo + "-" + t.descripcion + " - " + t.estado + " " + "-".join(razon.split(':')[1:])] 
+                    
+    for v in validaciones.keys():
+        print(v)
+        print("\t","\n\t".join(validaciones[v]), end='\n', sep='')
 
-            
+        
+
+        
+#     exit(0)
 
 
 
@@ -126,8 +151,28 @@ if __name__ == "__main__":
 
 
     map_excel['Planning']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
+
+
+    new_list=[]
+    headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
+    for t in tareas:
+        if t.estado in Tarea.dict_estados_tareas.keys():
+            for razon in t.validate():
+                validacion=[[razon.split(':')[0], 
+                             "-".join(razon.split(':')[1:]), 
+                             t.responsables.get("RF","") if t.responsables else "", 
+                             t.codigo, 
+                             t.descripcion, 
+                             t.estado]]
+                print(validacion)
+                new_list += validacion
+                
+    print(headers)
+    print(new_list)
+    map_excel['Validaciones']=pd.DataFrame(new_list,columns=headers)
    
-   
+    
+    
     for name, tab in map_excel.items():
         tab.to_excel(writer,sheet_name=name,index=False)     
     
@@ -239,5 +284,8 @@ if __name__ == "__main__":
 # df_ordered
 # fig = ff.create_gantt(df_ordered, index_col='Resource', show_colorbar=True, group_tasks=False, showgrid_x=True)
 # fig.show()
+
+
+
 
 
