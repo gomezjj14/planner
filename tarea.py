@@ -8,9 +8,9 @@ from collections import OrderedDict
 import math
 import datetime
 from enum import Enum
-from gestion import Gestion, Tarea as TareaGestion
+from gestion import Gestion
 from types import *
-# from gestion import Gestion
+from incurridos import *
 
 ''' 
 Subtarea: 
@@ -42,49 +42,54 @@ Tarea
   Validaciones
 '''
     
-
+class Validacion:
+    def __init__(self, what, why=''):
+        self.what=what
+        self.why=why
+        
+class CodigoSubtarea(Enum):
+    ENFOQUE = "Elaborar Enfoque"
+    DEF = "Elaborar DEF+PF+DPI"
+    EFF = "Elaborar EFF"
+    DTE = "Construcción+Prueba Unitaria+RPI"
+    QA = "Q&A"
+    ENTREGA = "Entregar a IBD"
     
+    __ordering__ = ['ENFOQUE', 'DEF','EFF','DTE','QA','ENTREGA']
+    def __lt__(self, other):
+        return self.__ordering__.index(self.name) < self.__ordering__.index(other.name)
 
+def str_to_date(f):
+    return(datetime.datetime.strptime(f, '%d/%m/%Y') if (type(f)==str and f!= 'DD/MM/YYYY') or (type(f)==float and not math.isnan(f))  else None)
+
+def date_to_str(fecha):
+    return str(fecha) if not fecha else fecha.strftime('%d/%m/%Y')
 
 class Subtarea:
     def __init__(self, codigo, fecha_desde, fecha_hasta, responsable, incurrible):
-        print("Creando subtarea...",codigo)
+        print("Creando subtarea...",codigo.value)
         self.codigo=codigo
-        self.fecha_desde=self.str_to_date(fecha_desde)
-        self.fecha_hasta=self.str_to_date(fecha_hasta)
+        self.fecha_desde=str_to_date(fecha_desde)
+        self.fecha_hasta=str_to_date(fecha_hasta)
         self.responsable=responsable
         self.incurrible=incurrible
-        
 
-    def str_to_date(self, f):
-        print(f)
-        return(datetime.datetime.strptime(f, '%d/%m/%Y') if (type(f)==str and f!= 'DD/MM/YYYY') or (type(f)==float and not math.isnan(f))  else None)
     def isValid(self):
-        return len([x for x in self.validate()]) == 0
-    
-    def validate(self):
-        if not self.fecha_desde:
-            yield "Sin fecha desde"
-        
-        if not self.fecha_hasta:
-            yield "Sin fecha hasta"
-            
-        if not self.responsable:
-            yield "Sin asignar"
-    
+        return self.fecha_desde and self.fecha_hasta and self.responsable
+   
     def __str__(self):
         return "Subtarea:[" + '#'.join([self.codigo,self.fecha_desde.strftime('%Y-%m-%d') if self.fecha_desde else '', self.fecha_hasta.strftime('%Y-%m-%d') if self.fecha_hasta else '', self.responsable, self.incurrible])+"]"
 
 class SubtareaView:
     @classmethod
     def show(self, s):
-        return '#'.join([s.codigo,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)])
+        return '#'.join([s.codigo.value,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)])
     @classmethod
     def headers(cls):
         return '#'.join(['subtarea','inicio', 'fin', 'Responsable', 'Incurrible'])
     @classmethod
     def to_list(cls, s):
-        return [s.codigo,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)]
+        return [s.codigo.value,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)]
 
 
 class Tarea:
@@ -109,32 +114,49 @@ class Tarea:
         'QA RPI':'QA',
         'QA':'QA',
         'QA + RPI':'QA'}
-    dict_estados_tareas=OrderedDict({"VALORACION - DEF":[{"Tarea":"Elaborar Enfoque", "start":'Due date Valoración Previa', "end":'Due date Valoración Previa', "Responsable":'RF'},
-                                                         {"Tarea":"Elaborar DEF+PF+DPI", "start":'Due date Valoración Previa', "end":'DEF', "Responsable":'RF', "Incurrible":['ARU']}], 
-                                     "DESARROLLO- EFF":[{"Tarea":"Elaborar EFF", "start":'DEF', "end":'EFF', "Responsable":"RT", "Incurrible":['DDE']}],
-                                     "DESARROLLO - DTE":[{"Tarea":"Construcción+Prueba Unitaria+RPI", "start":'EFF', "end":'DESARROLLO', "Responsable":"RD", "Incurrible":['PPU','DTI']}],
-                                     "ACN - INTEGRACION":[{"Tarea":"Q&A", "start":'DESARROLLO', "end":'QA', "Responsable":"QA", "Incurrible":['TUA']},
-                                                          {"Tarea":"Entregar a IBD", "start":'QA', "end":'Due date Entrega', "Responsable":"RF"}]
+    dict_estados_tareas=OrderedDict({"VALORACION - DEF":[{"Tarea": CodigoSubtarea.ENFOQUE, "start":'Due date Valoración Previa', "end":'Due date Valoración Previa', "Responsable":'RF', "Incurrible":[]},
+                                                         {"Tarea": CodigoSubtarea.DEF, "start":'Due date Valoración Previa', "end":'DEF', "Responsable":'RF', "Incurrible":['ARU']}], 
+                                     "DESARROLLO- EFF":[{"Tarea": CodigoSubtarea.EFF, "start":'DEF', "end":'EFF', "Responsable":"RT", "Incurrible":['DDE']}],
+                                     "DESARROLLO - DTE":[{"Tarea": CodigoSubtarea.DTE, "start":'EFF', "end":'DESARROLLO', "Responsable":"RD", "Incurrible":['PPU','DTI']}],
+                                     "ACN - INTEGRACION":[{"Tarea": CodigoSubtarea.QA, "start":'DESARROLLO', "end":'QA', "Responsable":"QA", "Incurrible":['TUA']},
+                                                          {"Tarea": CodigoSubtarea.ENTREGA, "start":'QA', "end":'Due date Entrega', "Responsable":"RF", "Incurrible":[]}]
                                      })    
     
         
     def __init__(self,codigo,descripcion, fecha_creacion, checklist=None, estado="VALORACION - DEF", fecha_vencimiento=None, responsables=None):
-        print('Creando tarea:', codigo)
+        print('Creando tarea:', codigo, ' - ', estado)
         self.codigo=codigo
         self.descripcion=descripcion.strip('- ')
         self.estado=estado
-        self.fecha_creacion=datetime.datetime.strptime(fecha_creacion, '%d/%m/%Y')
-        self.fecha_vencimiento=datetime.datetime.strptime(fecha_vencimiento, '%d/%m/%Y') if type(fecha_vencimiento)==str or (type(fecha_vencimiento)==float and not math.isnan(fecha_vencimiento))  else None
+        self.fecha_creacion=str_to_date(fecha_creacion)
+        self.fecha_vencimiento=str_to_date(fecha_vencimiento)
         self.setTareaGestion()
+        self.setTareaIncurridos()
         self.create_responsables(responsables)
         self.create_subtareas(checklist)
-            
-#         self.gestion=Gestion()
-#         self.gestion.createTarea(codigo)      
 
     @classmethod
     def from_record(cls, r):
         return cls(r['Nombre de la tarea'][0:12], r['Nombre de la tarea'][13:], r['Fecha de creación'], r['Elementos de la lista de comprobación'], r['Nombre del depósito'], r['Fecha de vencimiento'], r['Descripción'])
+
+    def create_subtareas(self, checklist):
+        checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')[:2]] for item in checklist.split(';') if '-' in item])
+        self.subtareas={}
+        Tarea.ck=Tarea.ck.union(checklist_to_dict.keys())
+        
+        try:
+            for estado in Tarea.estados()[Tarea.estados().index(self.estado):] :
+                for subt in Tarea.dict_estados_tareas[estado]:
+                    incurrible=sum([ self.tareaGestion.__getattribute__(i)  for i in subt["Incurrible"] if self.tareaGestion ])
+                    if subt["start"] in checklist_to_dict and subt["end"] in checklist_to_dict:
+                        self.subtareas[subt["Tarea"]]=Subtarea(subt["Tarea"],checklist_to_dict[subt["start"]], checklist_to_dict[subt["end"]], self.responsables[subt["Responsable"]], incurrible)
+        except ValueError:
+            pass
+
+    def create_responsables(self, r):
+        validos=["RF","RD","RT","QA"]
+        self.responsables=dict( [ [a.lstrip() for a in  resp.split(':')] for resp in r.split('\n') if resp[0:2] in validos]) if type(r)==str else {}
+
     
     def setTareaGestion(self):
         try:
@@ -142,87 +164,113 @@ class Tarea:
         except KeyError:
             self.tareaGestion=None
     
+    def setTareaIncurridos(self):
+        try:
+            self.tareaIncurridos=Incurridos.createTarea(self.codigo)
+        except KeyError:
+            self.tareaIncurridos=None
+    
     def isValid(self):
         return self.validate() is not None
 
-    def fechaToStr(self, fecha):
-        return str(fecha) if not fecha else fecha.strftime('%d/%m/%Y')
+
     
     def validate(self):
-        if not self.fecha_vencimiento:
-            yield "Sin fecha de vencimiento"
+        ''' Si la peticion esta pendiente de IBD no realiza mas validaciones '''
+        if self.estado=='PENDIENTE - IBD':
+            yield Validacion("Tarea pendiente de Iberdrola")
+        else:
+        
+            ''' Gestion vs Planner '''
+            if not self.tareaGestion:
+                yield Validacion("No tiene tarea en la excel de Gestión asociada")
             
-        if any([not x.isValid() for x in self.subtareas.values()]):
-            yield "Tiene subtareas sin planificar"
-        
-        if not self.tareaGestion:
-            yield "No tiene tarea en la excel de Gestión asociada"
-        
-        try:
-            '''Fecha de entrega'''
-            if self.tareaGestion and self.tareaGestion.fecha_entrega != self.subtareas["Entregar a IBD"].fecha_hasta:
-                yield "Fecha de entrega no coincide [GESTION][PLANNER]: [" + self.fechaToStr(self.tareaGestion.fecha_entrega) + "][" + self.fechaToStr(self.subtareas["Entregar a IBD"].fecha_hasta) + "]"
-        except KeyError:
-            yield "No existe subtarea 'Entregar a IBD'"
-        
-        try:
-            '''Fecha de valoración previa'''
-            if self.tareaGestion and self.tareaGestion.fecha_valoracion != self.subtareas["Elaborar Enfoque"].fecha_hasta:
-                yield "Fecha de valoración previa no coincide [GESTION][PLANNER]: [" + self.fechaToStr(self.tareaGestion.fecha_valoracion) + "][" + self.fechaToStr(self.subtareas["Elaborar Enfoque"].fecha_hasta) + "]"
-        except KeyError:
-            if self.estado=='VALORACION - DEF':
-                yield "No existe subtarea 'Elaborar Enfoque'"
-        
-        try:
-            '''Fecha de funcional'''
-            if self.tareaGestion and self.tareaGestion.fecha_funcional != self.subtareas["Elaborar DEF+PF+DPI"].fecha_hasta:
-                yield "Fecha de DEF no coincide [GESTION][PLANNER]: [" + self.fechaToStr(self.tareaGestion.fecha_funcional) + "][" + self.fechaToStr(self.subtareas["Elaborar DEF+PF+DPI"].fecha_hasta) + "]"
-        except KeyError:
-            if self.estado=='VALORACION - DEF':
-                yield "No existe subtarea 'DEF'"
-
-        if not self.responsables or "RF" not in self.responsables.keys() or not self.responsables["RF"]:
-            yield "No tiene asignado responsable funcional"
-            
-        if self.estado!='VALORACION - DEF':
             try:
-                if not self.subtareas["Entregar a IBD"].fecha_hasta:
-                    yield "Sin fecha de entrega planificada"
+                '''Fecha de valoración previa'''
+                if self.tareaGestion and self.tareaGestion.fecha_valoracion != self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta:
+                    yield Validacion("Fecha de valoración previa no coincide [GESTION][PLANNER]", 
+                                     "[" + date_to_str(self.tareaGestion.fecha_valoracion) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "]")
             except KeyError:
-                    yield "Sin fecha de entrega planificada"    
-        
-    def create_subtareas(self, checklist):
-        print(checklist,[ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')[:2]] for item in checklist.split(';') if '-' in item], sep='\n')
-        checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')[:2]] for item in checklist.split(';') if '-' in item])
-        self.subtareas={}
-        Tarea.ck=Tarea.ck.union(checklist_to_dict.keys())
-        
-        if self.estado in list(Tarea.dict_estados_tareas.keys()):
-            for estado in list(Tarea.dict_estados_tareas.keys())[list(Tarea.dict_estados_tareas.keys()).index(self.estado):] :
-                for subt in Tarea.dict_estados_tareas[estado]:
-                    print("\tsubt",subt["Tarea"], "["+subt["start"]+".."+ subt["end"] + "]", list(checklist_to_dict.keys()) , sep=' - ')
-
-                    incurrible=0
-                    try:
-                        for i in subt["Incurrible"]:
-                            if self.tareaGestion:
-                                incurrible+=self.tareaGestion.__getattribute__(i)
-                    except KeyError:
-                        incurrible=0
-                    
-                    if(subt["start"] in list(checklist_to_dict.keys()) and subt["end"] in list(checklist_to_dict.keys())):
-                        s=Subtarea(subt["Tarea"],checklist_to_dict[subt["start"]], checklist_to_dict[subt["end"]], self.responsables[subt["Responsable"]], incurrible)
-                        self.subtareas[subt["Tarea"]]=s            
-
-
-    def create_responsables(self, r):
-        self.responsables={}
-        validos=["RF","RD","RT","QA"]
-        self.responsables=dict( [ [a.lstrip() for a in  resp.split(':')] for resp in r.split('\n') if resp[0:2] in validos]) if type(r)==str else None
+                if self.estado=='VALORACION - DEF':
+                    yield Validacion("No existe subtarea 'Elaborar Enfoque'")
+    
+            try:
+                '''Fecha de funcional'''
+                if self.tareaGestion and self.tareaGestion.fecha_funcional != self.subtareas[CodigoSubtarea.DEF].fecha_hasta and self.tareaGestion.fecha_funcional:
+                    yield Validacion("Fecha de DEF no coincide [GESTION][PLANNER]", 
+                                     "[" + date_to_str(self.tareaGestion.fecha_funcional) + "][" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) + "]")
+            except KeyError:
+                if self.estado=='VALORACION - DEF':
+                    yield Validacion("No existe subtarea 'DEF'")
+    
+            try:
+                '''Fecha de entrega'''
+                if self.tareaGestion and self.tareaGestion.fecha_entrega != self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta and self.tareaGestion.fecha_entrega:
+                    yield Validacion("Fecha de entrega no coincide [GESTION][PLANNER]", 
+                                     "[" + date_to_str(self.tareaGestion.fecha_entrega) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) + "]")
+            except KeyError:
+                yield Validacion("No existe subtarea 'Entregar a IBD'")
+            
+            '''Validaciones generales en planner'''
+            if not self.fecha_vencimiento:
+                yield Validacion("Sin fecha de vencimiento")
+            if not self.responsables or "RF" not in self.responsables.keys() or not self.responsables["RF"]:
+                yield Validacion("No tiene asignado responsable funcional")
+            
+            '''Validaciones por estado en planner'''
+            if self.estado=='VALORACION - DEF':
+                try:
+                    if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta and 
+                                                   self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DEF].fecha_hasta):
+                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Enfoque-DEF]",
+                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "-" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta)+ "]")
+                except TypeError:
+                    '''Las fechas no permiten hacer la validacion'''
+                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-Enfoque-DEF]",
+                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta), date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) ]))
+                                               
+    
+            if self.estado=='DESARROLLO- EFF':
+                try:
+                    if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.EFF].fecha_hasta:
+                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][EFF]",
+                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) + "]")
+                except TypeError:
+                    '''Las fechas no permiten hacer la validacion'''
+                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-DEF]",
+                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) ]))
+                                               
+            if self.estado=='DESARROLLO - DTE':
+                try:
+                    if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DTE].fecha_hasta:
+                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][DTE]",
+                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) + "]")
+                except TypeError:
+                    '''Las fechas no permiten hacer la validacion'''
+                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-DTE]",
+                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) ]))
+    
+                
+            if self.estado=='ACN - INTEGRACION':
+                try:
+                    if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.QA].fecha_hasta and 
+                                                   self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta):
+                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Q&A-Entrega IBD]",
+                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta) + "/" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta)+ "]")
+                except TypeError:
+                    '''Las fechas no permiten hacer la validacion'''
+                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-Enfoque-DEF]",
+                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta), date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) ]))
+                                                           
+                
+                
+            if self.estado!='VALORACION - DEF':
+                if CodigoSubtarea.ENTREGA not in self.subtareas or not self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta:
+                    yield Validacion("Sin fecha de entrega planificada")
         
     @classmethod
-    def estados(self):
-        return list(Tarea.dict_estados_tareas.keys())
+    def estados(cls):
+        return list(cls.dict_estados_tareas.keys())
 
     def __str__(self):
         return '>>' + str(self.codigo) + ' ' + self. descripcion + ' - ' + str(self.fecha_vencimiento) + \
@@ -235,14 +283,14 @@ class Tarea:
 
     def to_dict_by_responsable(self):
         return [dict(Task=self.codigo, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.responsable ) \
-            for sub in self.subtareas.values() if sub.isComplete()]
+            for sub in self.subtareas.values() if sub.isValid()]
         
     def to_dict_by_estado(self):
         return [dict(Task=self.codigo, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.codigo ) \
-            for sub in self.subtareas.values() if sub.isComplete()]
+            for sub in self.subtareas.values() if sub.isValid()]
     def to_dict_for_responsable(self):
         return [dict(Task=sub.responsable, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.codigo ) \
-            for sub in self.subtareas.values() if sub.isComplete()]
+            for sub in self.subtareas.values() if sub.isValid()]
         
     
         
@@ -250,17 +298,18 @@ class Tarea:
 class TareaView:
     @classmethod
     def headers(cls):
-        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', SubtareaView.headers()])
+        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Incurridos disponibles', SubtareaView.headers()])
 
     @classmethod
     def to_str(cls,t,subtarea):
         return '#'.join([ str(t.codigo), t.descripcion, t.estado, str(t.fecha_vencimiento), \
                   (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), \
+                  t.tareaIncurridos.balance, \
                   SubtareaView.show(subtarea)])+'\n'
     @classmethod
     def to_list(cls,t, subtarea):
         return [ str(t.codigo), t.descripcion, t.estado, str(t.fecha_vencimiento), \
-                (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado")] + SubtareaView.to_list(subtarea)
+                (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), t.tareaIncurridos.balance if t.tareaIncurridos else 'NA'] + SubtareaView.to_list(subtarea)
 
     @classmethod
     def show_as_lists(cls,t):
@@ -295,3 +344,11 @@ class TareasPlanning(TareaView):
                         if subtarea.fecha_hasta is not None 
                         and subtarea.fecha_hasta <= datetime.datetime.today()+datetime.timedelta(days=dias)])
     
+
+
+if __name__=='__main__':
+    
+    index_list=[CodigoSubtarea.DTE,CodigoSubtarea.DEF]
+    
+    index_list.sort()
+    print(index_list)

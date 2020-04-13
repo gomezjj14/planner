@@ -1,8 +1,11 @@
 import pandas as pd
-from tabulate import tabulate
 import abc
 import datetime
-from pprint import pprint
+import sys
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+from pathlib import Path
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -31,20 +34,15 @@ class Gestion:
                     'Fecha planificada valoración previa':{pd.NaT:None},
                     'Fecha planificada funcional':{pd.NaT:None},
                     'Fecha planificada entrega':{pd.NaT:None}}
-
-
     
     @classmethod
     def create(cls):
         cls.df=pd.read_excel(cls.datasource, cls.sheet, engine = 'xlrd', index_col=1, na_values=[datetime.time(0)])
         cls.df=cls.df.loc[~cls.df.index.duplicated(keep='first')]
-
-
-    
     
     @classmethod
     def createTarea(cls,codigo):
-        t = Tarea()
+        t = TareaGestion()
         try:
             t.setTarea(codigo,*cls.df.fillna(Gestion.defaultValues).replace(Gestion.defaultValuesNone).loc[codigo,['Título','Estado gadget',  
                                                     'Total incurrible',
@@ -72,7 +70,7 @@ class Gestion:
             except TypeError:
                 continue
     
-class Tarea:    
+class TareaGestion:    
     def __init__(self):
         self.codigo=''
         self.descripcion=''
@@ -100,10 +98,8 @@ class Tarea:
         self.fecha_valoracion=valo
         self.fecha_funcional=funcional
         self.fecha_entrega=entrega
-        
-        
 
-class TareaView:
+class TareaGestionView:
     __metaclass__ = abc.ABCMeta
     def __init__(self,t):
         self.t=t
@@ -112,7 +108,7 @@ class TareaView:
     def __str__(self):
         None
         
-class TareaPrettyView(TareaView):
+class TareaPrettyView(TareaGestionView):
     def fechaToStr(self, fecha):
         return fecha.strftime('%Y-%m-%d') if type(fecha) == pd._libs.tslibs.timestamps.Timestamp else str(fecha)
     def __str__(self):
@@ -127,18 +123,14 @@ class TareaPrettyView(TareaView):
 
 if __name__ == "__main__":
 
+    #Excel de Gestion
+    Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing    
+    gestion_filename = askopenfilename(title = "Excel de Gestión", filetypes = (("excel","*.xlsx"),("all files","*.*")), initialdir=str(Path.home())+ '/Accenture/Peticiones - NUEVO CALCULADOR INTERNACIONAL/0 - GESTION') # show an "Open" dialog box and return the path to the selected file
+    print(gestion_filename)   
+    Gestion.datasource=gestion_filename
+    Gestion.create()
 
-#     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-#         pprint(Gestion.df)
-#         
-                
-    t=Gestion.createTarea('S-2020-01749')
-    print(TareaPrettyView(t))
-
-
-        
-#         for t in Gestion.createAllTarea():
-#             print(TareaPrettyView(t))
-        
-
+    for arg in sys.argv[1:]:
+        t=Gestion.createTarea(arg)
+        print(TareaPrettyView(t))
 

@@ -1,17 +1,21 @@
 # -*- coding: latin-1 -*-
 import pandas as pd
-import tempfile
 
 import plotly.figure_factory as ff
 
 import tkinter.ttk as ttk
 from tkinter import *
-from tarea import *
 from abc import abstractmethod, ABC
-import datetime
 import os
-from pprint import pprint
+from pathlib import Path
+from xlsxwriter.exceptions import FileCreateError
+
+
+import tarea 
+import incurridos 
 import gestion
+import config    
+
 
 # def fixed_map(option):
 #     # Fix for setting text colour for Tkinter 8.6.9
@@ -19,18 +23,11 @@ import gestion
 #     #
 #     # Returns the style map for 'option' with any styles starting with
 #     # ('!disabled', '!selected', ...) filtered out.
-# 
+#  
 #     # style.map() returns an empty list for missing options, so this
 #     # should be future-safe.
 #     return [elm for elm in style.map('Treeview', query_opt=option) if
 #       elm[:2] != ('!disabled', '!selected')]
-
-
-
-
-        
-
-
 
 
 
@@ -63,201 +60,137 @@ df_gant_por_responsable=[]
 
 
 
+class OutputExcelName:
+    version=0
+    path=str(Path.home())+ '/Downloads'
+    name='planning'
+    extension='xlsx'
+    
+    @classmethod
+    def getName(cls):
+        return '{}/{}{}.{}'.format(cls.path, cls.name, ("-"+str(cls.version)) if cls.version else "", cls.extension)
+
+    @classmethod
+    def getNextName(cls):
+        cls.version+=1
+        return cls.getName()
+        
+
+class Planning:
+    '''Atributos
+        - self.df
+        - self.tareas [Tarea]
+        - self.validaciones {razon.what, (razon, Tarea)}
+    '''
+        
+    def __init__(self):
+        self.map_excel={}
+        self.tareas=[]
+        self.validaciones={}
+
+        c=config.Config()
+        
+        self.df=pd.read_excel(c.planner_filename, skiprows=4)
+
+        gestion.Gestion.datasource=c.gestion_filename
+        gestion.Gestion.create()
+
+        incurridos.Incurridos.datasource=c.incurridos_filename
+        incurridos.Incurridos.create()        
 
 
+        self.cargarTareasPlanner()
+        self.validarTareasPlanner()
+        
+        c=config.ConfigView(c)        
+        
+    def cargarTareasPlanner(self):
+        '''Cargar tareas'''
+        self.tareas=[tarea.Tarea.from_record(row)  for (index, row) in self.df.iterrows()
+                     if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row['Nombre de la tarea']) and row['Progreso']!= 'Se ha completado']
 
+    def validarTareasPlanner(self):
+        from collections import defaultdict
+        self.validaciones=defaultdict(list)        
+        
+        for tarea in self.tareas:
+            for razon in tarea.validate():
+                if razon:
+                    self.validaciones[razon.what].append((razon, tarea))
 
+    def addTodas(self):
+        self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareaView.show_as_lists(t)], 
+                                         columns=tarea.TareaView.headers().split('#'))
+
+    def addSinPlanificar(self):        
+        self.map_excel['Sin planificar']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareasSinPlanificarView.show_as_lists(t)], 
+                                         columns=tarea.TareaView.headers().split('#'))
+    
+    def addPlanning(self):
+        self.map_excel['Planning']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareasPlanning.show_as_lists(t,14)], 
+                                         columns=tarea.TareaView.headers().split('#'))
+
+    def addValidaciones(self):
+        headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
+        validaciones=[[razon.what, razon.why, t.responsables.get("RF","") if t.responsables else "", t.codigo, t.descripcion, t.estado]  
+                  for validacion in self.validaciones.values()
+                  for razon, t in validacion if t.estado in tarea.Tarea.estados() + ['PENDIENTE - IBD']]
+                    
+        self.map_excel['Validaciones']=pd.DataFrame(validaciones,columns=headers)
+        
+    def generarExcel(self):
+        self.addTodas()
+        self.addSinPlanificar()
+        self.addPlanning()
+        self.addValidaciones()
+        
+    
+        outFileName=OutputExcelName.getName()
+        while True:
+            try:
+                writer = pd.ExcelWriter(outFileName, engine='xlsxwriter')
+        
+                for name, tab in self.map_excel.items():
+                    tab.to_excel(writer,sheet_name=name,index=False)     
+                writer.save()
+            except (PermissionError, FileCreateError):
+                outFileName=OutputExcelName.getNextName()
+                continue
+            break
+            
+        return outFileName
+
+    
+    
+        
+    
+        
+        
 
 if __name__ == "__main__":
-    
-    from tkinter import Tk
-    from tkinter.filedialog import askopenfilename
 
-    Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-    planner_filename = askopenfilename(title = "Extracción de planner", filetypes = (("excel","*.xlsx"),("all files","*.*"))) # show an "Open" dialog box and return the path to the selected file
-    print(planner_filename)
-    df=pd.read_excel(planner_filename, skiprows=4)
- 
-    gestion_filename = askopenfilename(title = "Excel de Gestión", filetypes = (("excel","*.xlsx"),("all files","*.*"))) # show an "Open" dialog box and return the path to the selected file
-    print(gestion_filename)   
-    Gestion.datasource=gestion_filename
-    Gestion.create()
-    
-    
-    '''Cargar tareas'''
-    tareas=[]
-    for index, x in df.iterrows():
-        if(re.match(r'S-[0-9]{4}-[0-9]{5}.*' , x['Nombre de la tarea'])):
-            t=Tarea.from_record(x)
-            tareas.append(t)
+    p=Planning()
 
-    print('** Validando tareas **')
-    validaciones ={}
-    for t in tareas:
-        if t.estado in Tarea.dict_estados_tareas.keys():
-            for razon in t.validate():
-                validaciones[razon.split(':')[0]]= validaciones.get(razon.split(':')[0], []) + [t.codigo + "-" + t.descripcion + " - " + t.estado + " " + "-".join(razon.split(':')[1:])] 
-                    
-    for v in validaciones.keys():
-        print(v)
-        print("\t","\n\t".join(validaciones[v]), end='\n', sep='')
-
-        
-
-        
-#     exit(0)
-
-
-
-    
-    out=r'C:\Users\j.gomez.de.la.cueva\OneDrive - Accenture\python\planner\test.xlsx'
-    writer = pd.ExcelWriter(out, engine='xlsxwriter')
-    map_excel={}
-    
-    ''' Mostrar tareas '''
-            
-    print('** Todas las tareas **')
-    print(TareaView.headers()) 
-    print(''.join([TareaView.show(t) for t in tareas if t.subtareas]))
-
-
-    new_list= []
-    for t in tareas:
-        if t.subtareas:
-            new_list += TareaView.show_as_lists(t)
-    
-    map_excel['Todas']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
-
-            
-    print('** Tareas sin planificar **')
-    print(TareaView.headers()) 
-    print(''.join([TareasSinPlanificarView.show(t) for t in tareas if t.subtareas]))
-
-    new_list= []
-    for t in tareas:
-        if t.subtareas:
-            new_list += TareasSinPlanificarView.show_as_lists(t)    
-
-    map_excel['Sin planificar']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
-   
-    
-    print('** Planning **') 
-    print(TareaView.headers()) 
-    print(''.join([TareasPlanning.show(t,15) for t in tareas if t.subtareas]))
-
-    new_list= []
-    for t in tareas:
-        if t.subtareas:
-            new_list += TareasPlanning.show_as_lists(t,2)    
-
-
-    map_excel['Planning']=pd.DataFrame(new_list,columns=TareaView.headers().split('#'))
-
-
-    new_list=[]
-    headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
-    for t in tareas:
-        if t.estado in Tarea.dict_estados_tareas.keys():
-            for razon in t.validate():
-                validacion=[[razon.split(':')[0], 
-                             "-".join(razon.split(':')[1:]), 
-                             t.responsables.get("RF","") if t.responsables else "", 
-                             t.codigo, 
-                             t.descripcion, 
-                             t.estado]]
-                print(validacion)
-                new_list += validacion
-                
-    print(headers)
-    print(new_list)
-    map_excel['Validaciones']=pd.DataFrame(new_list,columns=headers)
+    os.system(r'start excel.exe "' + p.generarExcel() +'"')
    
     
     
-    for name, tab in map_excel.items():
-        tab.to_excel(writer,sheet_name=name,index=False)     
-    
-        
-    writer.save()
-    os.system(r'start excel.exe "' + out +'"')
-    
-    
-#     traduccion = {'DTE + PPU + RPI':'DTE + PPU',
-#         'DTE + PPU +RPI':'DTE + PPU',
-#         'DTE + PPU  +RPI':'DTE + PPU',
-#         'DTE + PPU':'DTE + PPU',
-#         'DTE + PPU  Rework':'DTE + PPU',
-#         'RPI + QA':'RPI',
-#         'RPI':'RPI',
-#         'RPI':'RPI Rework',
-#         'RPI QA':'RPI',
-#         'QA del RPI':'RPI',
-#         'QA RPI':'RPI',
-#         'QA':'RPI',
-#         'QA + RPI':'RPI'}
     print("Etiquetas:")
-    print(Tarea.ck)
-    print(Tarea.traduccion.keys())
-    for x in Tarea.ck:
-        if x not in Tarea.traduccion.values():
+    print(tarea.Tarea.ck)
+    print(tarea.Tarea.traduccion.keys())
+    for x in tarea.Tarea.ck:
+        if x not in tarea.Tarea.traduccion.values():
             print("* [" + x +"]")
-        else:
-            print("  [" + x +"]")
-#     for t in tareas:
-#         if t.subtareas:
-#             print(TareasPlanning.show(t,15), end='') 
             
             
             
             
             
-            
-#             if not t.fecha_vencimiento:
-#                 sin_fecha.append(t)
-#             elif t.subtareas:
-#                 df_gant_estado+=t.to_dict_by_estado()
-#                 df_gant_responsable+=t.to_dict_by_responsable()
-#                 df_gant_por_responsable+=t.to_dict_for_responsable()
-#                 tareas.append(t)
+    for t in p.tareas:
+        df_gant_estado+=t.to_dict_by_estado()
+        df_gant_responsable+=t.to_dict_by_responsable()
+        df_gant_por_responsable+=t.to_dict_for_responsable()
 
-#     print("** Mostrar **")
-#     print(" 1.- Tareas sin fecha de entrega")
-#     
-#     option=int(input("> "))
-# 
-#     df=pd.DataFrame([s for t in tareas for s in t.as_dict()])
-#     
-#     if option==1:
-#         print('\n'.join(ValidadorFechaEntrega.batch(tareas)))
-#         print(df)
-# 
-# 
-# 
-#     sys.exit()
-# 
-# 
-#     print("** Todas **")
-#     print('\n'.join([ str(a) for a in tareas]))
-#         
-#     print("** Subtareas sin planificar **")
-#     print('\n'.join(ValidadorPlanificacion.batch(tareas)))
-#         
-#     print("** Tareas Vencidas **")
-#     print('\n'.join(ValidadorFechaVencimiento.batch(tareas)))
-    
-
-    
-
-# result = ask_multiple_choice_question(
-#     "ï¿½Quï¿½ quieres hacer?",
-#     [
-#         "Subtareas sin planificar",
-#         "Tareas vencidas",
-#         "Planning para las prï¿½ximas semanas"
-#     ]
-# )
-# 
-# print("User's response was: {}".format(repr(result)))
 
 # style = ttk.Style()
 # style.map('Treeview', foreground=fixed_map('foreground'),
@@ -277,10 +210,10 @@ if __name__ == "__main__":
 # 
 # fig = ff.create_gantt(df_gant_estado, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
 # fig.show()
-#   
+#    
 # fig = ff.create_gantt(df_gant_responsable, index_col='Resource', show_colorbar=True, group_tasks=True, showgrid_x=True)
 # fig.show()
-#   
+#    
 # df_ordered=sorted(df_gant_por_responsable, key= lambda k: k['Task'])
 # df_ordered
 # fig = ff.create_gantt(df_ordered, index_col='Resource', show_colorbar=True, group_tasks=False, showgrid_x=True)
