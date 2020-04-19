@@ -46,10 +46,7 @@ if __name__=='__main__':
 	Incurridos.datasource=gestion_filename
 	Incurridos.create()
 	
-    	
-	for arg in sys.argv[1:]:
-		try:
-			Incurridos.createTarea(arg).show()
-		except KeyError:
-			pass
+	print(Incurridos.pivot)
+
+
 		

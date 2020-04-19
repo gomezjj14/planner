@@ -12,10 +12,14 @@ from gestion import Gestion
 from types import *
 from incurridos import *
 
+import logging
+import traceback
+
 ''' 
 Subtarea: 
     [Elaborar Enfoque] ARU
     [Elaborar DEF+PF+DPI] ARU
+    
     [Elaborar EFF] DDE
     
     [Construcción+Prueba Unitaria] PPU + DTI
@@ -67,7 +71,7 @@ def date_to_str(fecha):
 
 class Subtarea:
     def __init__(self, codigo, fecha_desde, fecha_hasta, responsable, incurrible):
-        print("Creando subtarea...",codigo.value)
+        print("  Creando subtarea...",codigo.value)
         self.codigo=codigo
         self.fecha_desde=str_to_date(fecha_desde)
         self.fecha_hasta=str_to_date(fecha_hasta)
@@ -78,18 +82,18 @@ class Subtarea:
         return self.fecha_desde and self.fecha_hasta and self.responsable
    
     def __str__(self):
-        return "Subtarea:[" + '#'.join([self.codigo,self.fecha_desde.strftime('%Y-%m-%d') if self.fecha_desde else '', self.fecha_hasta.strftime('%Y-%m-%d') if self.fecha_hasta else '', self.responsable, self.incurrible])+"]"
+        return "Subtarea:[" + '#'.join([self.codigo,date_to_str(self.fecha_desde), date_to_str(self.fecha_hasta), self.responsable, self.incurrible])+"]"
 
 class SubtareaView:
     @classmethod
     def show(self, s):
-        return '#'.join([s.codigo.value,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)])
+        return '#'.join([s.codigo.value,date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta), s.responsable, str(s.incurrible)])
     @classmethod
     def headers(cls):
         return '#'.join(['subtarea','inicio', 'fin', 'Responsable', 'Incurrible'])
     @classmethod
     def to_list(cls, s):
-        return [s.codigo.value,s.fecha_desde.strftime('%Y-%m-%d') if s.fecha_desde else '', s.fecha_hasta.strftime('%Y-%m-%d') if s.fecha_hasta else '', s.responsable, str(s.incurrible)]
+        return [s.codigo.value,date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta), s.responsable, str(s.incurrible)]
 
 
 class Tarea:
@@ -176,104 +180,110 @@ class Tarea:
 
     
     def validate(self):
-        ''' Si la peticion esta pendiente de IBD no realiza mas validaciones '''
-        if self.estado=='PENDIENTE - IBD':
-            yield Validacion("Tarea pendiente de Iberdrola")
-        else:
+        try: 
+            ''' Si la peticion esta pendiente de IBD no realiza mas validaciones '''
+            if self.estado=='PENDIENTE - IBD':
+                yield Validacion("Tarea pendiente de Iberdrola",self.tareaGestion.estado)
+            else:
+                ''' Gestion vs Planner '''
+                if not self.tareaGestion:
+                    yield Validacion("No tiene tarea en la excel de Gestión asociada")
+                
+                try:
+                    '''Fecha de valoración previa'''
+                    if self.tareaGestion and self.tareaGestion.fecha_valoracion != self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta:
+                        yield Validacion("Fecha de valoración previa no coincide [GESTION][PLANNER]", 
+                                         "[" + date_to_str(self.tareaGestion.fecha_valoracion) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "]")
+                except KeyError:
+                    if self.estado=='VALORACION - DEF':
+                        yield Validacion("No existe subtarea 'Elaborar Enfoque'")
         
-            ''' Gestion vs Planner '''
-            if not self.tareaGestion:
-                yield Validacion("No tiene tarea en la excel de Gestión asociada")
-            
-            try:
-                '''Fecha de valoración previa'''
-                if self.tareaGestion and self.tareaGestion.fecha_valoracion != self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta:
-                    yield Validacion("Fecha de valoración previa no coincide [GESTION][PLANNER]", 
-                                     "[" + date_to_str(self.tareaGestion.fecha_valoracion) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "]")
-            except KeyError:
+                try:
+                    '''Fecha de funcional'''
+                    if self.tareaGestion and self.tareaGestion.fecha_funcional != self.subtareas[CodigoSubtarea.DEF].fecha_hasta and self.tareaGestion.fecha_funcional:
+                        yield Validacion("Fecha de DEF no coincide [GESTION][PLANNER]", 
+                                         "[" + date_to_str(self.tareaGestion.fecha_funcional) + "][" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) + "]")
+                except KeyError:
+                    if self.estado=='VALORACION - DEF':
+                        yield Validacion("No existe subtarea 'DEF'")
+        
+                try:
+                    '''Fecha de entrega'''
+                    if self.tareaGestion and self.tareaGestion.fecha_entrega != self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta and self.tareaGestion.fecha_entrega:
+                        yield Validacion("Fecha de entrega no coincide [GESTION][PLANNER]", 
+                                         "[" + date_to_str(self.tareaGestion.fecha_entrega) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) + "]")
+                except KeyError:
+                    yield Validacion("No existe subtarea 'Entregar a IBD'")
+                
+                '''Validaciones generales en planner'''
+                if not self.fecha_vencimiento:
+                    yield Validacion("Sin fecha de vencimiento")
+                if not self.responsables or "RF" not in self.responsables.keys() or not self.responsables["RF"]:
+                    yield Validacion("No tiene asignado responsable funcional")
+                
+                '''Validaciones por estado en planner'''
                 if self.estado=='VALORACION - DEF':
-                    yield Validacion("No existe subtarea 'Elaborar Enfoque'")
-    
-            try:
-                '''Fecha de funcional'''
-                if self.tareaGestion and self.tareaGestion.fecha_funcional != self.subtareas[CodigoSubtarea.DEF].fecha_hasta and self.tareaGestion.fecha_funcional:
-                    yield Validacion("Fecha de DEF no coincide [GESTION][PLANNER]", 
-                                     "[" + date_to_str(self.tareaGestion.fecha_funcional) + "][" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) + "]")
-            except KeyError:
-                if self.estado=='VALORACION - DEF':
-                    yield Validacion("No existe subtarea 'DEF'")
-    
-            try:
-                '''Fecha de entrega'''
-                if self.tareaGestion and self.tareaGestion.fecha_entrega != self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta and self.tareaGestion.fecha_entrega:
-                    yield Validacion("Fecha de entrega no coincide [GESTION][PLANNER]", 
-                                     "[" + date_to_str(self.tareaGestion.fecha_entrega) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) + "]")
-            except KeyError:
-                yield Validacion("No existe subtarea 'Entregar a IBD'")
+                    try:
+                        if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta and 
+                                                       self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DEF].fecha_hasta):
+                            yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Enfoque-DEF]",
+                                             "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "-" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta)+ "]")
+                    except TypeError:
+                        '''Las fechas no permiten hacer la validacion'''
+                        yield Validacion("No tiene planificadas fechas de Enfoque y/o DEF ",
+                                         "-".join([date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta), date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) ]))
+                                                   
+        
+                if self.estado=='DESARROLLO- EFF':
+                    try:
+                        if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.EFF].fecha_hasta:
+                            yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][EFF]",
+                                             "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) + "]")
+                    except TypeError:
+                        yield Validacion("No tiene planificada fecha de EFF")
+                    
+                    if not self.responsables['RT']:
+                        yield Validacion("La tarea no tiene asignado responsable técnico [RT]")
+                                                   
+                if self.estado=='DESARROLLO - DTE':
+                    try:
+                        if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DTE].fecha_hasta:
+                            yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][DTE]",
+                                             "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) + "]")
+                    except TypeError:
+                        yield Validacion("No tiene planificada fecha de DTE + PPU + RPI")    
+                    
+                    if not self.responsables['RD']:
+                        yield Validacion("La tarea no tiene asignado responsable de desarrollo [RD]")
+                    
+                if self.estado=='ACN - INTEGRACION':
+                    try:
+                        if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.QA].fecha_hasta and 
+                                                       self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta):
+                            yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Q&A-Entrega IBD]",
+                                             "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta) + "/" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta)+ "]")
+                    except TypeError:
+                        yield Validacion("No tiene planificada fecha de Q&A")                 
+                                                                      
+                    if not self.responsables['QA']:
+                        yield Validacion("La tarea no tiene asignado responsable de Q&A [QA]")
+                    
+                    
+                if self.estado!='VALORACION - DEF':
+                    if CodigoSubtarea.ENTREGA not in self.subtareas or not self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta:
+                        yield Validacion("Sin fecha de entrega planificada [GESTION]", date_to_str(self.tareaGestion.fecha_entrega) if self.tareaGestion else "")
+        
+        except:
+            logging.error('Error validando petición [{}]'.format(self.codigo))
+            logging.error(traceback.format_exc())
             
-            '''Validaciones generales en planner'''
-            if not self.fecha_vencimiento:
-                yield Validacion("Sin fecha de vencimiento")
-            if not self.responsables or "RF" not in self.responsables.keys() or not self.responsables["RF"]:
-                yield Validacion("No tiene asignado responsable funcional")
-            
-            '''Validaciones por estado en planner'''
-            if self.estado=='VALORACION - DEF':
-                try:
-                    if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta and 
-                                                   self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DEF].fecha_hasta):
-                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Enfoque-DEF]",
-                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta) + "-" + date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta)+ "]")
-                except TypeError:
-                    '''Las fechas no permiten hacer la validacion'''
-                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-Enfoque-DEF]",
-                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.ENFOQUE].fecha_hasta), date_to_str(self.subtareas[CodigoSubtarea.DEF].fecha_hasta) ]))
-                                               
-    
-            if self.estado=='DESARROLLO- EFF':
-                try:
-                    if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.EFF].fecha_hasta:
-                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][EFF]",
-                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) + "]")
-                except TypeError:
-                    '''Las fechas no permiten hacer la validacion'''
-                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-DEF]",
-                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) ]))
-                                               
-            if self.estado=='DESARROLLO - DTE':
-                try:
-                    if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DTE].fecha_hasta:
-                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][DTE]",
-                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) + "]")
-                except TypeError:
-                    '''Las fechas no permiten hacer la validacion'''
-                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-DTE]",
-                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) ]))
-    
-                
-            if self.estado=='ACN - INTEGRACION':
-                try:
-                    if self.fecha_vencimiento and (self.fecha_vencimiento > self.subtareas[CodigoSubtarea.QA].fecha_hasta and 
-                                                   self.fecha_vencimiento > self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta):
-                        yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Q&A-Entrega IBD]",
-                                         "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta) + "/" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta)+ "]")
-                except TypeError:
-                    '''Las fechas no permiten hacer la validacion'''
-                    yield Validacion("Las fechas no permiten hacer la validacion de la fecha de vencimiento [Vencimiento-Enfoque-DEF]",
-                                     "-".join([date_to_str(self.fecha_vencimiento), date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta), date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) ]))
-                                                           
-                
-                
-            if self.estado!='VALORACION - DEF':
-                if CodigoSubtarea.ENTREGA not in self.subtareas or not self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta:
-                    yield Validacion("Sin fecha de entrega planificada")
         
     @classmethod
     def estados(cls):
         return list(cls.dict_estados_tareas.keys())
 
     def __str__(self):
-        return '>>' + str(self.codigo) + ' ' + self. descripcion + ' - ' + str(self.fecha_vencimiento) + \
+        return '>>' + str(self.codigo) + ' ' + self. descripcion + ' - ' + date_to_str(self.fecha_vencimiento) + \
                ' - ' + (self.responsables.get("RF","Nadie asignado") if self.responsables else "Nadie asignado") + \
                ''.join([ '\n\t'+ str(subtarea) for subtarea in self.subtareas.values()]) ;
 
@@ -298,17 +308,17 @@ class Tarea:
 class TareaView:
     @classmethod
     def headers(cls):
-        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Incurridos disponibles', SubtareaView.headers()])
+        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Total Incurridos disponibles', SubtareaView.headers()])
 
     @classmethod
     def to_str(cls,t,subtarea):
-        return '#'.join([ str(t.codigo), t.descripcion, t.estado, str(t.fecha_vencimiento), \
+        return '#'.join([ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
                   (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), \
                   t.tareaIncurridos.balance, \
                   SubtareaView.show(subtarea)])+'\n'
     @classmethod
     def to_list(cls,t, subtarea):
-        return [ str(t.codigo), t.descripcion, t.estado, str(t.fecha_vencimiento), \
+        return [ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
                 (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), t.tareaIncurridos.balance if t.tareaIncurridos else 'NA'] + SubtareaView.to_list(subtarea)
 
     @classmethod

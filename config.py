@@ -12,52 +12,74 @@ from tkinter.filedialog import askopenfilename
 
 
 import yaml
+from enum import Enum
+
+class Filenames(Enum):
+    PLANNER = 'planner'
+    GESTION = 'gestion'
+    INCURRIDOS = 'incurridos'
+
+    @staticmethod
+    def list():
+        return list(map(lambda f: f.value, Filenames))    
 
 class Config:
     config_file='config.yml'
-    filenames={'planner':{'title':'Extracción de planner', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Downloads' },
-               'gestion':{'title':'Excel de Gestion', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Accenture/Peticiones - NUEVO CALCULADOR INTERNACIONAL/0 - GESTION' },
-               'incurridos':{'title':'Excel de incurridos', 'filetypes':(("excel","*.xlsm"),("all files","*.*")), 'initialdir':str(Path.home())+ '/OneDrive - Accenture/Iberdrola/incurridos' }}
+    config_filenames={Filenames.PLANNER:{'title':'Extracción de planner', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Downloads' },
+               Filenames.GESTION:{'title':'Excel de Gestion', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Accenture/Peticiones - NUEVO CALCULADOR INTERNACIONAL/0 - GESTION' },
+               Filenames.INCURRIDOS:{'title':'Excel de incurridos', 'filetypes':(("excel","*.xlsm"),("all files","*.*")), 'initialdir':str(Path.home())+ '/OneDrive - Accenture/Iberdrola/incurridos' }}
     
 
-    def process_filename(self, cfg, elemento):
+    def process_filename(self, cfg, elemento, ask=False):
         filename=""
         initial_dir=""
         try:
-            initial_dir=cfg['files'][elemento]['path']
+            initial_dir=cfg['files'][elemento.value]['path']
         except KeyError:
-            initial_dir=Config.filenames[elemento]['initialdir']
+            initial_dir=Config.config_filenames[elemento]['initialdir']
 
         try:
-            filename = os.path.join(cfg['files'][elemento]['path'], cfg['files'][elemento]['name']) 
+            if ask:
+                filename = \
+                    askopenfilename(title = Config.config_filenames[elemento]['title'], 
+                                    filetypes = Config.config_filenames[elemento]['filetypes'], 
+                                    initialdir=initial_dir)
+            else:
+                filename = os.path.join(cfg['files'][elemento.value]['path'], cfg['files'][elemento.value]['name']) 
             print('->', filename)
             if not os.path.isfile(filename):
                 raise FileNotFoundError()
         except (TypeError, KeyError, FileNotFoundError):
             filename = \
-                askopenfilename(title = Config.filenames[elemento]['title'], 
-                                filetypes = Config.filenames[elemento]['filetypes'], 
+                askopenfilename(title = Config.config_filenames[elemento]['title'], 
+                                filetypes = Config.config_filenames[elemento]['filetypes'], 
                                 initialdir=initial_dir)
         return filename
 
     def __init__(self):
         Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing        
         self.cfg={}
-
-        with open(Config.config_file, "r") as ymlfile:
+        self.filenames={}
+        
+        with open(Config.config_file, "a+") as ymlfile:
+            ymlfile.seek(0)
             self.cfg = yaml.safe_load(ymlfile)
+        
         
         if not self.cfg or not self.cfg['files']:
             self.cfg={'files':{}}
+            for f in Filenames:
+                self.cfg['files'][f.value]={}
+         
             
-        self.incurridos_filename = self.process_filename(self.cfg,'incurridos') 
-        self.planner_filename = self.process_filename(self.cfg,'planner') 
-        self.gestion_filename = self.process_filename(self.cfg,'gestion') 
+        for f in Filenames:
+            self.filenames[f]=self.process_filename(self.cfg,f)
 
     def save(self):
-        self.cfg['files']['incurridos']['path'], self.cfg['files']['incurridos']['name']=os.path.split(self.incurridos_filename)
-        self.cfg['files']['planner']['path'], self.cfg['files']['planner']['name']=os.path.split(self.planner_filename)
-        self.cfg['files']['gestion']['path'], self.cfg['files']['gestion']['name']=os.path.split(self.gestion_filename)
+        print(self.filenames)
+        for f in Filenames:
+            self.cfg['files'][f.value]['path'], self.cfg['files'][f.value]['name']=os.path.split(self.filenames[f])
+        
         with open(Config.config_file, "w") as ymlfile:
             yaml.dump(self.cfg, ymlfile)
 
@@ -70,53 +92,56 @@ class ConfigView:
             print('%s: "%s"' % (field, text)) 
     
     def run(self):
-        print(self.config.cfg)
-        self.config.gestion_filename=self.ents['Gestión'].get()
-        self.config.incurridos_filename=self.ents['Incurridos'].get()
-        self.config.planner_filename=self.ents['Planner'].get()
-        print(self.config)
+        for f in Filenames:
+            self.config.filenames[f]=self.ents[f].get()
         self.config.save()
+        self.root.quit()
+    
+    def ask(self,field):
+        filename=self.config.process_filename(self.config.cfg, field, True)
+        if filename:
+            self.ents[field].delete(0,tk.END)
+            self.ents[field].insert(0, filename)
         
 
-    def makeform(self,root,fields):
+    def makeform(self,root):
         entries = {}
-        for field, filename in fields.items():
+        buttons = {}
+#         for field, filename in fields.items():
+        for f in Filenames:
             row = tk.Frame(root)
             row.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-            lab = tk.Label(row, width=15, text=field, anchor='w').pack(side=tk.LEFT)
+            lab = tk.Label(row, width=15, text=f.value, anchor='w')
+            lab.pack(side=tk.LEFT)
             
-            ent = tk.Entry(row, width=len(max(fields.values(), key=len)))
-            ent.insert(0, filename)
-            ent.pack(side=tk.LEFT)
+            entries[f] = tk.Entry(row, width=len(max(self.config.filenames.values(), key=len)))
+            entries[f].insert(0, self.config.filenames[f])
+            entries[f].pack(side=tk.LEFT)
 
             
-            button = tk.Button(row, 
-                               text="...", 
-                               command=quit).pack(side=tk.LEFT, padx=5, expand=tk.YES)
+            buttons[f] = tk.Button(row, 
+                               text='...', 
+                               command=lambda x=f: self.ask(x))
+            buttons[f].pack(side=tk.LEFT, padx=5, expand=tk.YES)
                                
-            entries[field] = ent
         return entries
     
     
     
     def __init__(self, config):
-        root = tk.Tk()
+        self.root = tk.Tk()
         self.config=config
         
-        fields={'Gestión':config.gestion_filename, 'Planner':config.planner_filename, 'Incurridos':config.incurridos_filename}
-        
-        self.ents = self.makeform(root, fields)
+        self.ents = self.makeform(self.root)
 
-        b2 = tk.Button(root, text='Quit', command=root.destroy)
+        b2 = tk.Button(self.root, text='Quit', command=self.root.destroy)
         b2.pack(padx=5, pady=5, side=tk.RIGHT)        
         
-        b1 = tk.Button(root, text='Ok', command=self.run)
+        b1 = tk.Button(self.root, text='Ok', command=self.run)
         b1.pack(padx=5, pady=5, side=tk.RIGHT)
-        
 
-        print(root.wait_window(root))
-        root.mainloop()
+        self.root.mainloop()
         
 if __name__ == '__main__':
     config=Config()

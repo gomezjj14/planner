@@ -89,20 +89,23 @@ class Planning:
         self.validaciones={}
 
         c=config.Config()
+        config.ConfigView(c)
         
-        self.df=pd.read_excel(c.planner_filename, skiprows=4)
+        self.df=pd.read_excel(c.filenames[config.Filenames.PLANNER], skiprows=4)
 
-        gestion.Gestion.datasource=c.gestion_filename
+        gestion.Gestion.datasource=c.filenames[config.Filenames.GESTION]
         gestion.Gestion.create()
 
-        incurridos.Incurridos.datasource=c.incurridos_filename
+        incurridos.Incurridos.datasource=c.filenames[config.Filenames.INCURRIDOS]
         incurridos.Incurridos.create()        
 
 
         self.cargarTareasPlanner()
         self.validarTareasPlanner()
         
-        c=config.ConfigView(c)        
+        
+        self.generarExcel()
+                
         
     def cargarTareasPlanner(self):
         '''Cargar tareas'''
@@ -137,28 +140,36 @@ class Planning:
                   for razon, t in validacion if t.estado in tarea.Tarea.estados() + ['PENDIENTE - IBD']]
                     
         self.map_excel['Validaciones']=pd.DataFrame(validaciones,columns=headers)
+    
+    def addIncurridos(self):
+        headers=["Codigo", "Descripcion", "Total", "Subtarea","Incurridos Disponibles"]
+        incurridos=[[t.codigo,t.descripcion,t.tareaIncurridos.balance, k, v]  for t in self.tareas if t.tareaIncurridos for (k,v) in t.tareaIncurridos.incurridos.items()]
+        
+        self.map_excel['incurridos']=pd.DataFrame(incurridos,columns=headers)
+
         
     def generarExcel(self):
         self.addTodas()
         self.addSinPlanificar()
         self.addPlanning()
         self.addValidaciones()
+        self.addIncurridos()
         
     
-        outFileName=OutputExcelName.getName()
+        self.outFileName=OutputExcelName.getName()
         while True:
             try:
-                writer = pd.ExcelWriter(outFileName, engine='xlsxwriter')
+                writer = pd.ExcelWriter(self.outFileName, engine='xlsxwriter')
         
                 for name, tab in self.map_excel.items():
                     tab.to_excel(writer,sheet_name=name,index=False)     
                 writer.save()
             except (PermissionError, FileCreateError):
-                outFileName=OutputExcelName.getNextName()
+                self.outFileName=OutputExcelName.getNextName()
                 continue
             break
             
-        return outFileName
+        return self.outFileName
 
     
     
@@ -171,7 +182,7 @@ if __name__ == "__main__":
 
     p=Planning()
 
-    os.system(r'start excel.exe "' + p.generarExcel() +'"')
+    os.system(r'start excel.exe "' + p.outFileName+'"')
    
     
     
