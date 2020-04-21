@@ -62,6 +62,41 @@ class CodigoSubtarea(Enum):
     __ordering__ = ['ENFOQUE', 'DEF','EFF','DTE','QA','ENTREGA']
     def __lt__(self, other):
         return self.__ordering__.index(self.name) < self.__ordering__.index(other.name)
+    
+class HeadersFactory():
+    @classmethod    
+    def create(cls,l):
+        if   HeadersSP.NOMBRE in l:
+            return HeadersSP
+        elif HeadersEN.NOMBRE in l:
+            return HeadersEN
+        else:
+            return None
+  
+    
+        
+        
+        
+class HeadersSP():
+    NOMBRE = 'Nombre de la tarea'
+    F_CREACION = 'Fecha de creación'
+    CHECKLIST = 'Elementos de la lista de comprobación'
+    DEPOSITO = 'Nombre del depósito'
+    F_VENCIMIENTO = 'Fecha de vencimiento'
+    DESCRIPCION = 'Descripción'
+    PROGRESO = 'Progreso'
+    COMPLETADA = 'Se ha completado'
+    
+class HeadersEN():
+    NOMBRE = 'Task Name'
+    F_CREACION = 'Created Date'
+    CHECKLIST = 'Checklist Items'
+    DEPOSITO = 'Bucket Name'
+    F_VENCIMIENTO = 'Due Date'
+    DESCRIPCION = 'Description'
+    PROGRESO = 'Progress'
+    COMPLETADA = 'Completed'
+
 
 def str_to_date(f):
     return(datetime.datetime.strptime(f, '%d/%m/%Y') if (type(f)==str and f!= 'DD/MM/YYYY') or (type(f)==float and not math.isnan(f))  else None)
@@ -141,7 +176,9 @@ class Tarea:
 
     @classmethod
     def from_record(cls, r):
-        return cls(r['Nombre de la tarea'][0:12], r['Nombre de la tarea'][13:], r['Fecha de creación'], r['Elementos de la lista de comprobación'], r['Nombre del depósito'], r['Fecha de vencimiento'], r['Descripción'])
+        h = HeadersFactory.create(r.keys())
+#         return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
+        return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
 
     def create_subtareas(self, checklist):
         checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')[:2]] for item in checklist.split(';') if '-' in item])

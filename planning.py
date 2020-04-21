@@ -109,8 +109,9 @@ class Planning:
         
     def cargarTareasPlanner(self):
         '''Cargar tareas'''
+        h = tarea.HeadersFactory.create(self.df.columns)
         self.tareas=[tarea.Tarea.from_record(row)  for (index, row) in self.df.iterrows()
-                     if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row['Nombre de la tarea']) and row['Progreso']!= 'Se ha completado']
+                     if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row[h.NOMBRE]) and row[h.PROGRESO]!= h.COMPLETADA]
 
     def validarTareasPlanner(self):
         from collections import defaultdict
