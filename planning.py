@@ -11,10 +11,10 @@ from pathlib import Path
 from xlsxwriter.exceptions import FileCreateError
 
 
-import tarea 
-import incurridos 
-import gestion
-import config    
+from tarea import tarea
+from incurridos import incurridos 
+from gestion import gestion
+from config import config    
 
 
 # def fixed_map(option):

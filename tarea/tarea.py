@@ -8,12 +8,13 @@ from collections import OrderedDict
 import math
 import datetime
 from enum import Enum
-from gestion import Gestion
 from types import *
-from incurridos import *
-
 import logging
 import traceback
+
+from incurridos.incurridos import Incurridos
+from gestion.gestion import Gestion
+
 
 ''' 
 Subtarea: 
