@@ -1,21 +1,22 @@
 # -*- coding: latin-1 -*-
 import pandas as pd
 
-import plotly.figure_factory as ff
+# import plotly.figure_factory as ff
+# import tkinter.ttk as ttk
+# from abc import abstractmethod, ABC
 
-import tkinter.ttk as ttk
-from tkinter import *
-from abc import abstractmethod, ABC
+# from tkinter import *
 import os
 from pathlib import Path
 from xlsxwriter.exceptions import FileCreateError
 
 
-from tarea import tarea
-from incurridos import incurridos 
-from gestion import gestion
+from incurridos.dao import IncurridosDAOExcel 
+from gestion.dao import GestionDAOExcel
 from config import config    
-
+from tarea.dao import TareaDAOExcel
+from tarea.view import TareaView, TareasSinPlanificarView, TareasPlanning
+from tarea.model import Tarea
 
 # def fixed_map(option):
 #     # Fix for setting text colour for Tkinter 8.6.9
@@ -32,31 +33,31 @@ from config import config
 
 
 
-class Arbol(ttk.Frame):
-    def __init__(self,main_window):
-        super().__init__(main_window)
-        main_window.title("Vista de ï¿½rbol en Tkinter")
-        
-        self.grid(column=0, row=0, sticky="ns")
-        self.treeview = ttk.Treeview(self, columns=("inicio","fin", "responsable"))
-
-        self.treeview.pack(expand=True, fill=BOTH)
-        self.pack()
-        
-        
-        self.treeview.tag_configure("red", background='yellow', foreground="red")
-        
-
-    def add_tarea(self, tarea):
-        return self.treeview.insert("", END, text=f'{tarea.codigo} {tarea.descripcion}', values=(tarea.fecha_creacion, tarea.fecha_vencimiento, tarea.estado), tags=("red",))
-
-    def add_subtarea(self, tarea, subtarea):
-        self.treeview.insert(tarea, END, text=f'{subtarea.codigo}', values=(subtarea.fecha_desde, subtarea.fecha_hasta, subtarea.responsable), tags=("red",))
-
-    
-df_gant_estado=[]
-df_gant_responsable=[]
-df_gant_por_responsable=[]
+# class Arbol(ttk.Frame):
+#     def __init__(self,main_window):
+#         super().__init__(main_window)
+#         main_window.title("Vista de ï¿½rbol en Tkinter")
+#         
+#         self.grid(column=0, row=0, sticky="ns")
+#         self.treeview = ttk.Treeview(self, columns=("inicio","fin", "responsable"))
+# 
+#         self.treeview.pack(expand=True, fill=BOTH)
+#         self.pack()
+#         
+#         
+#         self.treeview.tag_configure("red", background='yellow', foreground="red")
+#         
+# 
+#     def add_tarea(self, tarea):
+#         return self.treeview.insert("", END, text=f'{tarea.codigo} {tarea.descripcion}', values=(tarea.fecha_creacion, tarea.fecha_vencimiento, tarea.estado), tags=("red",))
+# 
+#     def add_subtarea(self, tarea, subtarea):
+#         self.treeview.insert(tarea, END, text=f'{subtarea.codigo}', values=(subtarea.fecha_desde, subtarea.fecha_hasta, subtarea.responsable), tags=("red",))
+# 
+#     
+# df_gant_estado=[]
+# df_gant_responsable=[]
+# df_gant_por_responsable=[]
 
 
 
@@ -91,54 +92,36 @@ class Planning:
         c=config.Config()
         config.ConfigView(c)
         
-        self.df=pd.read_excel(c.filenames[config.Filenames.PLANNER], skiprows=4)
+        self.planner= TareaDAOExcel(c.filenames[config.Filenames.PLANNER])
+        self.gestion = GestionDAOExcel(c.filenames[config.Filenames.GESTION])
+        self.incurridos = IncurridosDAOExcel(c.filenames[config.Filenames.INCURRIDOS])
 
-        gestion.Gestion.datasource=c.filenames[config.Filenames.GESTION]
-        gestion.Gestion.create()
+        self.cargarPlanner()
 
-        incurridos.Incurridos.datasource=c.filenames[config.Filenames.INCURRIDOS]
-        incurridos.Incurridos.create()        
-
-
-        self.cargarTareasPlanner()
-        self.validarTareasPlanner()
-        
-        
         self.generarExcel()
                 
         
-    def cargarTareasPlanner(self):
-        '''Cargar tareas'''
-        h = tarea.HeadersFactory.create(self.df.columns)
-        self.tareas=[tarea.Tarea.from_record(row)  for (index, row) in self.df.iterrows()
-                     if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row[h.NOMBRE]) and row[h.PROGRESO]!= h.COMPLETADA]
-
-    def validarTareasPlanner(self):
-        from collections import defaultdict
-        self.validaciones=defaultdict(list)        
-        
-        for tarea in self.tareas:
-            for razon in tarea.validate():
-                if razon:
-                    self.validaciones[razon.what].append((razon, tarea))
+    def cargarPlanner(self):
+        self.tareas = self.planner.getAllTareas()
+        self.validaciones=self.planner.getAllValidaciones()      
 
     def addTodas(self):
-        self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareaView.show_as_lists(t)], 
-                                         columns=tarea.TareaView.headers().split('#'))
+        self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareaView.show_as_lists(t)], 
+                                         columns=TareaView.headers().split('#'))
 
     def addSinPlanificar(self):        
-        self.map_excel['Sin planificar']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareasSinPlanificarView.show_as_lists(t)], 
-                                         columns=tarea.TareaView.headers().split('#'))
+        self.map_excel['Sin planificar']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasSinPlanificarView.show_as_lists(t)], 
+                                         columns=TareaView.headers().split('#'))
     
     def addPlanning(self):
-        self.map_excel['Planning']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in tarea.TareasPlanning.show_as_lists(t,14)], 
-                                         columns=tarea.TareaView.headers().split('#'))
+        self.map_excel['Planning']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasPlanning.show_as_lists(t,14)], 
+                                         columns=TareaView.headers().split('#'))
 
     def addValidaciones(self):
         headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
         validaciones=[[razon.what, razon.why, t.responsables.get("RF","") if t.responsables else "", t.codigo, t.descripcion, t.estado]  
                   for validacion in self.validaciones.values()
-                  for razon, t in validacion if t.estado in tarea.Tarea.estados() + ['PENDIENTE - IBD']]
+                  for razon, t in validacion if t.estado in Tarea.estados() + ['PENDIENTE - IBD']]
                     
         self.map_excel['Validaciones']=pd.DataFrame(validaciones,columns=headers)
     
@@ -188,20 +171,20 @@ if __name__ == "__main__":
     
     
     print("Etiquetas:")
-    print(tarea.Tarea.ck)
-    print(tarea.Tarea.traduccion.keys())
-    for x in tarea.Tarea.ck:
-        if x not in tarea.Tarea.traduccion.values():
+    print(Tarea.ck)
+    print(Tarea.traduccion.keys())
+    for x in Tarea.ck:
+        if x not in Tarea.traduccion.values():
             print("* [" + x +"]")
             
             
             
             
             
-    for t in p.tareas:
-        df_gant_estado+=t.to_dict_by_estado()
-        df_gant_responsable+=t.to_dict_by_responsable()
-        df_gant_por_responsable+=t.to_dict_for_responsable()
+#     for t in p.tareas:
+#         df_gant_estado+=t.to_dict_by_estado()
+#         df_gant_responsable+=t.to_dict_by_responsable()
+#         df_gant_por_responsable+=t.to_dict_for_responsable()
 
 
 # style = ttk.Style()

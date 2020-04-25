@@ -1,69 +1,19 @@
 '''
-Created on 30 dic. 2019
+Created on 25 abr. 2020
 
 @author: j.gomez.de.la.cueva
 '''
 
 from collections import OrderedDict
-import math
-import datetime
 from enum import Enum
-from types import *
 import logging
 import traceback
 
-from incurridos.incurridos import Incurridos
-from gestion.gestion import Gestion
 
+from util.util import date_to_str, str_to_date
+from gestion.dao import GestionDAOExcel
+from incurridos.dao import IncurridosDAOExcel
 
-''' 
-Subtarea: 
-    [Elaborar Enfoque] ARU
-    [Elaborar DEF+PF+DPI] ARU
-    
-    [Elaborar EFF] DDE
-    
-    [Construcción+Prueba Unitaria] PPU + DTI
-    
-    [Q&A] TUA
-    [Entregar a IBD]
-    
-    codigo
-    fecha_desde
-    fecha_hasta
-    responsable
-'''
-
-'''
-Tarea
-    codigo
-    descripcion
-    estado
-    fecha_creacion
-    fecha_vencimiento
-    responsables {tarea, responsable}
-    subtareas {codigo, subtarea}
-    tareaGestion
-  Validaciones
-'''
-    
-class Validacion:
-    def __init__(self, what, why=''):
-        self.what=what
-        self.why=why
-        
-class CodigoSubtarea(Enum):
-    ENFOQUE = "Elaborar Enfoque"
-    DEF = "Elaborar DEF+PF+DPI"
-    EFF = "Elaborar EFF"
-    DTE = "Construcción+Prueba Unitaria+RPI"
-    QA = "Q&A"
-    ENTREGA = "Entregar a IBD"
-    
-    __ordering__ = ['ENFOQUE', 'DEF','EFF','DTE','QA','ENTREGA']
-    def __lt__(self, other):
-        return self.__ordering__.index(self.name) < self.__ordering__.index(other.name)
-    
 class HeadersFactory():
     @classmethod    
     def create(cls,l):
@@ -73,10 +23,6 @@ class HeadersFactory():
             return HeadersEN
         else:
             return None
-  
-    
-        
-        
         
 class HeadersSP():
     NOMBRE = 'Nombre de la tarea'
@@ -97,13 +43,22 @@ class HeadersEN():
     DESCRIPCION = 'Description'
     PROGRESO = 'Progress'
     COMPLETADA = 'Completed'
+    
 
 
-def str_to_date(f):
-    return(datetime.datetime.strptime(f, '%d/%m/%Y') if (type(f)==str and f!= 'DD/MM/YYYY') or (type(f)==float and not math.isnan(f))  else None)
 
-def date_to_str(fecha):
-    return str(fecha) if not fecha else fecha.strftime('%d/%m/%Y')
+class CodigoSubtarea(Enum):
+    ENFOQUE = "Elaborar Enfoque"
+    DEF = "Elaborar DEF+PF+DPI"
+    EFF = "Elaborar EFF"
+    DTE = "Construcción+Prueba Unitaria+RPI"
+    QA = "Q&A"
+    ENTREGA = "Entregar a IBD"
+    
+    __ordering__ = ['ENFOQUE', 'DEF','EFF','DTE','QA','ENTREGA']
+    def __lt__(self, other):
+        return self.__ordering__.index(self.name) < self.__ordering__.index(other.name)
+    
 
 class Subtarea:
     def __init__(self, codigo, fecha_desde, fecha_hasta, responsable, incurrible):
@@ -120,17 +75,10 @@ class Subtarea:
     def __str__(self):
         return "Subtarea:[" + '#'.join([self.codigo,date_to_str(self.fecha_desde), date_to_str(self.fecha_hasta), self.responsable, self.incurrible])+"]"
 
-class SubtareaView:
-    @classmethod
-    def show(self, s):
-        return '#'.join([s.codigo.value,date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta), s.responsable, str(s.incurrible)])
-    @classmethod
-    def headers(cls):
-        return '#'.join(['subtarea','inicio', 'fin', 'Responsable', 'Incurrible'])
-    @classmethod
-    def to_list(cls, s):
-        return [s.codigo.value,date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta), s.responsable, str(s.incurrible)]
-
+class Validacion:
+    def __init__(self, what, why=''):
+        self.what=what
+        self.why=why    
 
 class Tarea:
     ck=set()
@@ -178,7 +126,6 @@ class Tarea:
     @classmethod
     def from_record(cls, r):
         h = HeadersFactory.create(r.keys())
-#         return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
         return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
 
     def create_subtareas(self, checklist):
@@ -202,13 +149,13 @@ class Tarea:
     
     def setTareaGestion(self):
         try:
-            self.tareaGestion=Gestion.createTarea(self.codigo)
+            self.tareaGestion=GestionDAOExcel().getOne(self.codigo)
         except KeyError:
             self.tareaGestion=None
     
     def setTareaIncurridos(self):
         try:
-            self.tareaIncurridos=Incurridos.createTarea(self.codigo)
+            self.tareaIncurridos=IncurridosDAOExcel().getOne(self.codigo)
         except KeyError:
             self.tareaIncurridos=None
     
@@ -339,64 +286,6 @@ class Tarea:
     def to_dict_for_responsable(self):
         return [dict(Task=sub.responsable, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.codigo ) \
             for sub in self.subtareas.values() if sub.isValid()]
-        
-    
-        
 
-class TareaView:
-    @classmethod
-    def headers(cls):
-        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Total Incurridos disponibles', SubtareaView.headers()])
-
-    @classmethod
-    def to_str(cls,t,subtarea):
-        return '#'.join([ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
-                  (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), \
-                  t.tareaIncurridos.balance, \
-                  SubtareaView.show(subtarea)])+'\n'
-    @classmethod
-    def to_list(cls,t, subtarea):
-        return [ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
-                (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), t.tareaIncurridos.balance if t.tareaIncurridos else 'NA'] + SubtareaView.to_list(subtarea)
-
-    @classmethod
-    def show_as_lists(cls,t):
-        return [ cls.to_list(t,subtarea) for subtarea in t.subtareas.values() ]
-    
-    @classmethod
-    def show(cls,t):
-        return ''.join([cls.to_str(t, subtarea) for subtarea in t.subtareas.values()])
-
-        
-        
-class TareasSinPlanificarView(TareaView):        
-    @classmethod
-    def show_as_lists(cls,t):
-        return [cls.to_list(t, subtarea) for subtarea in t.subtareas.values() if subtarea.fecha_hasta is None]
-
-    @classmethod
-    def show(cls,t):
-        return ''.join([cls.to_str(t, subtarea) for subtarea in t.subtareas.values() if subtarea.fecha_hasta is None])
-
-    
-class TareasPlanning(TareaView):
-    @classmethod
-    def show_as_lists(cls,t,dias):
-        return [cls.to_list(t, subtarea) for subtarea in t.subtareas.values() 
-                        if subtarea.fecha_hasta is not None 
-                        and subtarea.fecha_hasta <= datetime.datetime.today()+datetime.timedelta(days=dias)]
-
-    @classmethod
-    def show(cls,t,dias):
-        return ''.join([cls.to_str(t, subtarea) for subtarea in t.subtareas.values() 
-                        if subtarea.fecha_hasta is not None 
-                        and subtarea.fecha_hasta <= datetime.datetime.today()+datetime.timedelta(days=dias)])
-    
-
-
-if __name__=='__main__':
-    
-    index_list=[CodigoSubtarea.DTE,CodigoSubtarea.DEF]
-    
-    index_list.sort()
-    print(index_list)
+if __name__ == '__main__':
+    pass
