@@ -15,51 +15,9 @@ from incurridos.dao import IncurridosDAOExcel
 from gestion.dao import GestionDAOExcel
 from config import config    
 from tarea.dao import TareaDAOExcel
+from tarea.daoMongoDB import TareaDAOMongoDB
 from tarea.view import TareaView, TareasSinPlanificarView, TareasPlanning
 from tarea.model import Tarea
-
-# def fixed_map(option):
-#     # Fix for setting text colour for Tkinter 8.6.9
-#     # From: https://core.tcl.tk/tk/info/509cafafae
-#     #
-#     # Returns the style map for 'option' with any styles starting with
-#     # ('!disabled', '!selected', ...) filtered out.
-#  
-#     # style.map() returns an empty list for missing options, so this
-#     # should be future-safe.
-#     return [elm for elm in style.map('Treeview', query_opt=option) if
-#       elm[:2] != ('!disabled', '!selected')]
-
-
-
-
-# class Arbol(ttk.Frame):
-#     def __init__(self,main_window):
-#         super().__init__(main_window)
-#         main_window.title("Vista de �rbol en Tkinter")
-#         
-#         self.grid(column=0, row=0, sticky="ns")
-#         self.treeview = ttk.Treeview(self, columns=("inicio","fin", "responsable"))
-# 
-#         self.treeview.pack(expand=True, fill=BOTH)
-#         self.pack()
-#         
-#         
-#         self.treeview.tag_configure("red", background='yellow', foreground="red")
-#         
-# 
-#     def add_tarea(self, tarea):
-#         return self.treeview.insert("", END, text=f'{tarea.codigo} {tarea.descripcion}', values=(tarea.fecha_creacion, tarea.fecha_vencimiento, tarea.estado), tags=("red",))
-# 
-#     def add_subtarea(self, tarea, subtarea):
-#         self.treeview.insert(tarea, END, text=f'{subtarea.codigo}', values=(subtarea.fecha_desde, subtarea.fecha_hasta, subtarea.responsable), tags=("red",))
-# 
-#     
-# df_gant_estado=[]
-# df_gant_responsable=[]
-# df_gant_por_responsable=[]
-
-
 
 class OutputExcelName:
     version=0
@@ -99,6 +57,8 @@ class Planning:
         self.cargarPlanner()
 
         self.generarExcel()
+        
+#        self.insertMongoDB()
                 
         
     def cargarPlanner(self):
@@ -155,7 +115,10 @@ class Planning:
             
         return self.outFileName
 
-    
+    def insertMongoDB(self):
+        db=TareaDAOMongoDB()
+        print(db.insertAll(self.tareas))
+        
     
         
     

@@ -9,6 +9,7 @@ from enum import Enum
 import logging
 import traceback
 
+from mongoengine import *
 
 from util.util import date_to_str, str_to_date
 from gestion.dao import GestionDAOExcel
@@ -286,6 +287,30 @@ class Tarea:
     def to_dict_for_responsable(self):
         return [dict(Task=sub.responsable, Start=sub.fecha_desde.strftime('%Y-%m-%d'), Finish=sub.fecha_hasta.strftime('%Y-%m-%d'), Resource=sub.codigo ) \
             for sub in self.subtareas.values() if sub.isValid()]
+        
+    def to_dict_mongodb(self):
+        return {'codigo':self.codigo, 'descripcion':self.descripcion, 
+                'estado':self.estado, 
+                'fecha_creacion':self.fecha_creacion, 'fecha_vencimiento':self.fecha_vencimiento,
+                'responsable_funcional':self.responsables['RF'],
+                'subtareas':[SubtareaMongoDb(**{"codigo":s.codigo.value, "fecha_desde":s.fecha_desde, "fecha_hasta":s.fecha_hasta, "responsable":s.responsable, 'incurrible':s.incurrible}) for s in self.subtareas.values()]
+                }
+
+class SubtareaMongoDb(EmbeddedDocument):
+    codigo=StringField(required=True)
+    fecha_desde=DateTimeField()
+    fecha_hasta=DateTimeField()
+    responsable=StringField()
+    incurrible=IntField()
+
+class TareaMongoDb(Document):
+    codigo=StringField(required=True)
+    descripcion=StringField(required=True)
+    estado=StringField(required=True)
+    fecha_creacion=DateTimeField()
+    fecha_vencimiento=DateTimeField()
+    responsable_funcional=StringField()
+    subtareas=ListField(EmbeddedDocumentField(SubtareaMongoDb))
 
 if __name__ == '__main__':
     pass

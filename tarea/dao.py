@@ -64,7 +64,7 @@ class TareaDAOExcel:
     def getAllTareas(self):
         if not TareaDAOExcel.tareas:
             h = HeadersFactory.create(self.df.columns)
-            TareaDAOExcel.tareas=[Tarea.from_record(row)  for (index, row) in TareaDAOExcel.df.iterrows()
+            TareaDAOExcel.tareas=[Tarea.from_record(row)  for (_, row) in TareaDAOExcel.df.iterrows()
                          if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row[h.NOMBRE]) and row[h.PROGRESO]!= h.COMPLETADA]
         
         return TareaDAOExcel.tareas
