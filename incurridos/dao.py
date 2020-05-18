@@ -27,6 +27,9 @@ class IncurridosDAOExcel:
 	def getAll(self):
 		IncurridosDAOExcel.pivot=IncurridosDAOExcel.df.pivot_table(index=['Código','Actividad'],  values=['Ppto. Incurrible','TOTAL'], aggfunc=sum)
 		return IncurridosDAOExcel.pivot
+	
+	def getDF(self):
+		return IncurridosDAOExcel.df
 		
 if __name__=='__main__':
 	
