@@ -81,14 +81,15 @@ class Planning:
 
         dias=14
         for t in self.tareas:
-            for cod, s in t.subtareas.items():
+            for cod, s,  in t.subtareas.items():
                 if s.fecha_hasta is not None and s.fecha_hasta <= datetime.datetime.today()+datetime.timedelta(days=dias):
-                    subt="{} ({}-{}..{})".format(t.codigo,cod.value, date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta))
+                    ####
+                    subt="{} ({}-{}..{}, **DESCRIPCIÓN: {})".format(t.codigo,cod.value, date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta),t.descripcion.upper())
+                    ####
                     responsable[s.responsable].append(subt)
         
         headers=["Responsable","Tareas"]
-        list_by_responsable=[[r, " - ".join(t)] for r,t in responsable.items()]
-        
+        list_by_responsable=[[r, " - ".join(t) ] for r,t in responsable.items()]
         self.map_excel['Planning por responsable']=pd.DataFrame(list_by_responsable, columns=headers)
 
 

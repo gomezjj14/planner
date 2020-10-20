@@ -10,7 +10,7 @@ from gestion.model import TareaGestion
 
 class GestionDAOExcel:
     excel=''
-    sheet='Seguimiento-Iberbill'
+    sheet='Seguimiento-Iberbill-nuevo'
     defaultValues={'Título':'N/A',
                    'Estado gadget':'N/A',  
                     'Total incurrible':0.0,

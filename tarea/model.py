@@ -53,7 +53,7 @@ class CodigoSubtarea(Enum):
     EFF = "Elaborar EFF"
     DTE = "Construcción+Prueba Unitaria+RPI"
     QA = "Q&A"
-    ENTREGA = "Entregar a IBD"
+    ENTREGA = "Entrega a IBD + Creacion Tags"
     
     __ordering__ = ['ENFOQUE', 'DEF','EFF','DTE','QA','ENTREGA']
     def __lt__(self, other):
@@ -168,7 +168,12 @@ class Tarea:
         try: 
             ''' Si la peticion esta pendiente de IBD no realiza mas validaciones '''
             if self.estado=='PENDIENTE - IBD':
-                yield Validacion("Tarea pendiente de Iberdrola",self.tareaGestion.estado)
+             ####
+                try:
+                    yield Validacion("Tarea pendiente de Iberdrola",self.tareaGestion.estado)
+                except AttributeError:
+                    yield Validacion("Tarea pendiente iberdrola vacia o inexistente")
+            ####
             else:
                 ''' Gestion vs Planner '''
                 if not self.tareaGestion:
@@ -197,6 +202,10 @@ class Tarea:
                     if self.tareaGestion and self.tareaGestion.fecha_entrega != self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta and self.tareaGestion.fecha_entrega:
                         yield Validacion("Fecha de entrega no coincide [GESTION][PLANNER]", 
                                          "[" + date_to_str(self.tareaGestion.fecha_entrega) + "][" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta) + "]")
+                ###
+                except ValueError:
+                    yield Validacion(" El campo fecha esta vacio")
+                ###
                 except KeyError:
                     yield Validacion("No existe subtarea 'Entregar a IBD'")
                 
@@ -235,6 +244,10 @@ class Tarea:
                         if self.fecha_vencimiento and self.fecha_vencimiento > self.subtareas[CodigoSubtarea.DTE].fecha_hasta:
                             yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][DTE]",
                                              "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.DTE].fecha_hasta) + "]")
+                    ###
+                    except KeyError:
+                        yield Validacion(" No existe tarea para el codigo subtarea " + str(CodigoSubtarea))
+                    ###
                     except TypeError:
                         yield Validacion("No tiene planificada fecha de DTE + PPU + RPI")    
                     
@@ -253,11 +266,14 @@ class Tarea:
                     if not self.responsables['QA']:
                         yield Validacion("La tarea no tiene asignado responsable de Q&A [QA]")
                     
-                    
                 if self.estado!='VALORACION - DEF':
                     if CodigoSubtarea.ENTREGA not in self.subtareas or not self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta:
-                        yield Validacion("Sin fecha de entrega planificada [GESTION]", date_to_str(self.tareaGestion.fecha_entrega) if self.tareaGestion else "")
-        
+                    ##### 
+                        try:
+                            yield Validacion("Sin fecha de entrega planificada [GESTION]", date_to_str(self.tareaGestion.fecha_entrega) if self.tareaGestion else "")
+                        except ValueError:
+                            yield Validacion(" Campo fecha entrega planificada esta vacio")
+                    #####
         except:
             logging.error('Error validando petición [{}]'.format(self.codigo))
             logging.error(traceback.format_exc())
