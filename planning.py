@@ -1,4 +1,4 @@
-# -*- coding: latin-1 -*-
+ # -*- coding: latin-1 -*-
 import pandas as pd
 
 # import plotly.figure_factory as ff
@@ -19,6 +19,10 @@ from tarea.dao import TareaDAOExcel
 from tarea.view import TareaView, TareasSinPlanificarView, TareasPlanning
 from tarea.model import Tarea
 from util.util import date_to_str
+from numpy import sort
+from pip._vendor.msgpack.fallback import xrange
+from pandas._libs.tslibs import strptime
+from _operator import pos
 
 class OutputExcelName:
     version=0
@@ -78,21 +82,37 @@ class Planning:
 
     def addPlanningPorResponsable(self):
         responsable=defaultdict(list)
-
         dias=14
         for t in self.tareas:
             for cod, s,  in t.subtareas.items():
                 if s.fecha_hasta is not None and s.fecha_hasta <= datetime.datetime.today()+datetime.timedelta(days=dias):
                     ####
-                    subt="{} ({}-{}..{}, **DESCRIPCIÓN: {})".format(t.codigo,cod.value, date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta),t.descripcion.upper())
+                    subt="{} {} ({}-{}..{})\n".format(t.codigo,t.descripcion.upper(),cod.value, date_to_str(s.fecha_desde), date_to_str(s.fecha_hasta))
                     ####
                     responsable[s.responsable].append(subt)
         
+        lista_ordenada = []
+        for r in responsable:
+           lista_ordenada = self.ordenarTareas(responsable[r], r)
+           responsable[r]=lista_ordenada 
+            
+            
         headers=["Responsable","Tareas"]
-        list_by_responsable=[[r, " - ".join(t) ] for r,t in responsable.items()]
+        list_by_responsable=[[r, "".join(t) ] for r,t in responsable.items()]
         self.map_excel['Planning por responsable']=pd.DataFrame(list_by_responsable, columns=headers)
 
 
+    def ordenarTareas(self, list,r ):
+        n=len(list)
+    
+        for i in range(n-1):
+            for j in range(0,n-i-1):
+                if datetime.datetime.strptime(list[j].split("..")[1].split(")")[0], "%d/%m/%Y") > datetime.datetime.strptime(list[j+1].split("..")[1].split(")")[0], "%d/%m/%Y"):
+                    list[j], list[j+1] = list[j+1], list[j]
+        
+        return list
+        
+          
     def addValidaciones(self):
         headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
         validaciones=[[razon.what, razon.why, t.responsables.get("RF","") if t.responsables else "", t.codigo, t.descripcion, t.estado]  
@@ -100,6 +120,7 @@ class Planning:
                   for razon, t in validacion if t.estado in Tarea.estados() + ['PENDIENTE - IBD']]
                     
         self.map_excel['Validaciones']=pd.DataFrame(validaciones,columns=headers)
+    
     
     def addIncurridos(self):
         headers=["Codigo", "Descripcion", "Total", "Subtarea","Incurridos Disponibles"]
@@ -131,12 +152,7 @@ class Planning:
             
         return self.outFileName
 
-    
-    
-        
-    
-        
-        
+
 
 if __name__ == "__main__":
 
@@ -153,10 +169,20 @@ if __name__ == "__main__":
         if x not in Tarea.traduccion.values():
             print("* [" + x +"]")
             
+    """
+    fechas = ['25/10/2020', '21/10/2020', '25/10/2020', '23/10/2020', '22/09/2020', '05/10/2020', '05/10/2020', '02/10/2020', '18/09/2020', '15/10/2020', '05/10/2020', '15/10/2020']
+    
+    n=len(fechas)
+    
+    for i in range(n-1):
+        for j in range(0,n-i-1):
+            if datetime.datetime.strptime(fechas[j], "%d/%m/%Y") > datetime.datetime.strptime(fechas[j+1], "%d/%m/%Y"):
+                fechas[j], fechas[j+1] = fechas[j+1], fechas[j]
+    
+    print(fechas)
             
-            
-            
-            
+    """
+
 #     for t in p.tareas:
 #         df_gant_estado+=t.to_dict_by_estado()
 #         df_gant_responsable+=t.to_dict_by_responsable()
