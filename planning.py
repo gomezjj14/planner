@@ -69,16 +69,14 @@ class Planning:
         self.validaciones=self.planner.getAllValidaciones()      
 
     def addTodas(self):
-        self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareaView.show_as_lists(t)], 
-                                         columns=TareaView.headers().split('#'))
+            self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareaView.show_as_lists(t)], columns=TareaView.headers().split('#'))
 
-    def addSinPlanificar(self):        
-        self.map_excel['Sin planificar']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasSinPlanificarView.show_as_lists(t)], 
-                                         columns=TareaView.headers().split('#'))
+    def addSinPlanificar(self):      
+            self.map_excel['Sin planificar']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasSinPlanificarView.show_as_lists(t)], columns=TareaView.headers().split('#'))
     
     def addPlanning(self):
-        self.map_excel['Planning']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasPlanning.show_as_lists(t,14)], 
-                                         columns=TareaView.headers().split('#'))
+             self.map_excel['Planning']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareasPlanning.show_as_lists(t,14)],columns=TareaView.headers().split('#'))
+                              
 
     def addPlanningPorResponsable(self):
         responsable=defaultdict(list)

@@ -13,6 +13,7 @@ import traceback
 from util.util import date_to_str, str_to_date
 from gestion.dao import GestionDAOExcel
 from incurridos.dao import IncurridosDAOExcel
+from pickle import NONE
 
 class HeadersFactory():
     @classmethod    
@@ -129,6 +130,7 @@ class Tarea:
         return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
 
     def create_subtareas(self, checklist):
+  
         checklist_to_dict=dict( [ [ Tarea.traduccion.get(a.lstrip().rstrip(),a.lstrip().rstrip()) for a in  item.split('-')[:2]] for item in checklist.split(';') if '-' in item])
         self.subtareas={}
         Tarea.ck=Tarea.ck.union(checklist_to_dict.keys())
@@ -141,7 +143,7 @@ class Tarea:
                         self.subtareas[subt["Tarea"]]=Subtarea(subt["Tarea"],checklist_to_dict[subt["start"]], checklist_to_dict[subt["end"]], self.responsables[subt["Responsable"]], incurrible)
         except ValueError:
             pass
-
+      
     def create_responsables(self, r):
         validos=["RF","RD","RT","QA"]
         self.responsables=dict( [ [a.lstrip() for a in  resp.split(':')] for resp in r.split('\n') if resp[0:2] in validos]) if type(r)==str else {}
@@ -235,6 +237,9 @@ class Tarea:
                                              "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.EFF].fecha_hasta) + "]")
                     except TypeError:
                         yield Validacion("No tiene planificada fecha de EFF")
+                    except KeyError:
+                        yield Validacion("Error validando peticion")
+                    
                     
                     if not self.responsables['RT']:
                         yield Validacion("La tarea no tiene asignado responsable técnico [RT]")
@@ -261,6 +266,8 @@ class Tarea:
                             yield Validacion("Fecha de vencimiento de la tarea es mayor que la fecha planificada [Vencimiento][Q&A-Entrega IBD]",
                                              "["+date_to_str(self.fecha_vencimiento)+ "][" + date_to_str(self.subtareas[CodigoSubtarea.QA].fecha_hasta) + "/" + date_to_str(self.subtareas[CodigoSubtarea.ENTREGA].fecha_hasta)+ "]")
                     except TypeError:
+                        yield Validacion("No tiene planificada fecha de Q&A")
+                    except KeyError:
                         yield Validacion("No tiene planificada fecha de Q&A")                 
                                                                       
                     if not self.responsables['QA']:
