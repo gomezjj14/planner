@@ -108,7 +108,7 @@ class Tarea:
                                      "DESARROLLO- EFF":[{"Tarea": CodigoSubtarea.EFF, "start":'DEF', "end":'EFF', "Responsable":"RT", "Incurrible":['DDE']}],
                                      "DESARROLLO - DTE":[{"Tarea": CodigoSubtarea.DTE, "start":'EFF', "end":'DESARROLLO', "Responsable":"RD", "Incurrible":['PPU','DTI']}],
                                      "ACN - INTEGRACION":[{"Tarea": CodigoSubtarea.QA, "start":'DESARROLLO', "end":'QA', "Responsable":"QA", "Incurrible":['TUA']},
-                                                          {"Tarea": CodigoSubtarea.ENTREGA, "start":'QA', "end":'Due date Entrega', "Responsable":"RF", "Incurrible":[]}]
+                                                          {"Tarea": CodigoSubtarea.ENTREGA, "start":'QA', "end":'Due date Entrega + Creacion Tags', "Responsable":"RF", "Incurrible":[]}]
                                      })    
     
         
