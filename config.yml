@@ -1,11 +1,13 @@
 files:
   gestion:
-    name: SeguimientoIberbill.xlsx
-    path: C:/Users/j.gomez.de.la.cueva/Accenture/Peticiones - NUEVO CALCULADOR INTERNACIONAL/0
-      - GESTION
+    name: GESTION PETICIONES_v6.4 (15).xlsx
+    path: C:/Users/a.martin.beain/Desktop/Docus nuevos
   incurridos:
-    name: 20200421_085701_InformeRevisionDesglosePeticiones_20200421_085645h_NereaIbarraHerran.xlsm
-    path: C:/Users/j.gomez.de.la.cueva/OneDrive - Accenture/Iberdrola/incurridos
+    name: 20201023_InformeRevisionDesglosePeticiones.xlsm
+    path: C:/Users/a.martin.beain/Desktop/Docus nuevos
   planner:
-    name: FI - Area 1 (17).xlsx
-    path: C:/Users/j.gomez.de.la.cueva/Downloads
+    name: FI - Area 1 (85).xlsx
+    path: C:/Users/a.martin.beain/Desktop/Docus nuevos
+  planner2:
+    name: FI - Area 2 (98).xlsx
+    path: C:/Users/a.martin.beain/Desktop/Docus nuevos

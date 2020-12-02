@@ -51,11 +51,12 @@ class Planning:
         self.map_excel={}
         self.tareas=[]
         self.validaciones={}
-
+        
         c=config.Config()
         config.ConfigView(c)
         
         self.planner= TareaDAOExcel(c.filenames[config.Filenames.PLANNER])
+        self.planner2= TareaDAOExcel(c.filenames[config.Filenames.PLANNER2])
         self.gestion = GestionDAOExcel(c.filenames[config.Filenames.GESTION])
         self.incurridos = IncurridosDAOExcel(c.filenames[config.Filenames.INCURRIDOS])
 
@@ -65,9 +66,14 @@ class Planning:
                 
         
     def cargarPlanner(self):
-        self.tareas = self.planner.getAllTareas()
-        self.validaciones=self.planner.getAllValidaciones()      
-
+        self.tareas = self.planner.getAllTareas() + self.planner2.getAllTareas()
+        self.validaciones=self.merge_dols(self.planner.getAllValidaciones(), self.planner2.getAllValidaciones())
+        
+    def merge_dols(self, dol1, dol2):
+        keys = set(dol1).union(dol2)
+        no = []
+        return dict((k, dol1.get(k, no) + dol2.get(k, no)) for k in keys)
+        
     def addTodas(self):
             self.map_excel['Todas']=pd.DataFrame([subtarea for t in self.tareas if t.subtareas for subtarea in TareaView.show_as_lists(t)], columns=TareaView.headers().split('#'))
 

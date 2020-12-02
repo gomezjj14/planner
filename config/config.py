@@ -16,6 +16,7 @@ from enum import Enum
 
 class Filenames(Enum):
     PLANNER = 'planner'
+    PLANNER2 = 'planner2'
     GESTION = 'gestion'
     INCURRIDOS = 'incurridos'
 
@@ -25,7 +26,8 @@ class Filenames(Enum):
 
 class Config:
     config_file='config.yml'
-    config_filenames={Filenames.PLANNER:{'title':'Extracción de planner', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Downloads' },
+    config_filenames={Filenames.PLANNER:{'title':'Extracción de planner Area1', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Downloads' },
+                      Filenames.PLANNER2:{'title':'Extracción de planner Area2', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Downloads' },
                       Filenames.GESTION:{'title':'Excel de Gestion', 'filetypes':(("excel","*.xlsx"),("all files","*.*")), 'initialdir':str(Path.home())+ '/Accenture/Peticiones - NUEVO CALCULADOR INTERNACIONAL/0 - GESTION' },
                       Filenames.INCURRIDOS:{'title':'Excel de incurridos', 'filetypes':(("excel","*.xlsm"),("all files","*.*")), 'initialdir':str(Path.home())+ '/OneDrive - Accenture/Iberdrola/incurridos' }
                }

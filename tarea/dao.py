@@ -51,33 +51,31 @@ Tarea
 '''
 
 class TareaDAOExcel:
-    excel=""
-    df=None
-    tareas=None
-    validaciones=None
+    
     def __init__(self, excel):
-        if not TareaDAOExcel.df and TareaDAOExcel.excel != excel:
-            TareaDAOExcel.excel=excel
-            TareaDAOExcel.df=pd.read_excel(excel, skiprows=4)
+        self.excel=excel
+        self.df=pd.read_excel(excel, skiprows=4)
+        self.tareas=None
+        self.validaciones=None
     
-    
+        
     def getAllTareas(self):
-        if not TareaDAOExcel.tareas:
+        if not self.tareas:
             h = HeadersFactory.create(self.df.columns)
-            TareaDAOExcel.tareas=[Tarea.from_record(row)  for (index, row) in TareaDAOExcel.df.iterrows()
+            self.tareas=[Tarea.from_record(row)  for (index, row) in self.df.iterrows()
                          if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row[h.NOMBRE]) and row[h.PROGRESO]!= h.COMPLETADA]
         
-        return TareaDAOExcel.tareas
+        return self.tareas
     
     def getAllValidaciones(self):
         from collections import defaultdict
-        TareaDAOExcel.validaciones=defaultdict(list)        
+        self.validaciones=defaultdict(list)        
         
         for tarea in self.tareas:
             for razon in tarea.validate():
                 if razon:
-                    TareaDAOExcel.validaciones[razon.what].append((razon, tarea))
-        return TareaDAOExcel.validaciones
+                    self.validaciones[razon.what].append((razon, tarea))
+        return self.validaciones
 
 
         
