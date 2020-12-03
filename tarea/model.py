@@ -112,7 +112,7 @@ class Tarea:
                                      })    
     
         
-    def __init__(self,codigo,descripcion, fecha_creacion, checklist=None, estado="VALORACION - DEF", fecha_vencimiento=None, responsables=None):
+    def __init__(self,codigo,descripcion, fecha_creacion,area, checklist=None, estado="VALORACION - DEF", fecha_vencimiento=None, responsables=None):
         print('Creando tarea:', codigo, ' - ', estado)
         self.codigo=codigo
         self.descripcion=descripcion.strip('- ')
@@ -121,13 +121,15 @@ class Tarea:
         self.fecha_vencimiento=str_to_date(fecha_vencimiento)
         self.setTareaGestion()
         self.setTareaIncurridos()
+        self.area=area
         self.create_responsables(responsables)
         self.create_subtareas(checklist)
+        
 
     @classmethod
-    def from_record(cls, r):
+    def from_record(cls, r, area):
         h = HeadersFactory.create(r.keys())
-        return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
+        return cls(r[h.NOMBRE][0:12], r[h.NOMBRE][13:], r[h.F_CREACION], area, r[h.CHECKLIST], r[h.DEPOSITO], r[h.F_VENCIMIENTO], r[h.DESCRIPCION])
 
     def create_subtareas(self, checklist):
   

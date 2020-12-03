@@ -22,17 +22,17 @@ class SubtareaView:
 class TareaView:
     @classmethod
     def headers(cls):
-        return '#'.join(['codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Total Incurridos disponibles', SubtareaView.headers()])
+        return '#'.join(['Area','codigo','descripcion', 'estado', 'fec. vencimiento', 'Resp. funcional', 'Total Incurridos disponibles', SubtareaView.headers()])
 
     @classmethod
     def to_str(cls,t,subtarea):
-        return '#'.join([ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
+        return '#'.join([ t.area, str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
                   (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), \
                   t.tareaIncurridos.balance, \
                   SubtareaView.show(subtarea)])+'\n'
     @classmethod
     def to_list(cls,t, subtarea):
-        return [ str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
+        return [t.area, str(t.codigo), t.descripcion, t.estado, date_to_str(t.fecha_vencimiento), \
                 (t.responsables.get("RF","Nadie asignado") if t.responsables else "Nadie asignado"), t.tareaIncurridos.balance if t.tareaIncurridos else 'NA'] + SubtareaView.to_list(subtarea)
 
     @classmethod

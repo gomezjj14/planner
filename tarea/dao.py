@@ -52,17 +52,18 @@ Tarea
 
 class TareaDAOExcel:
     
-    def __init__(self, excel):
+    def __init__(self, excel,area):
         self.excel=excel
         self.df=pd.read_excel(excel, skiprows=4)
         self.tareas=None
         self.validaciones=None
+        self.area=area
     
         
     def getAllTareas(self):
         if not self.tareas:
             h = HeadersFactory.create(self.df.columns)
-            self.tareas=[Tarea.from_record(row)  for (index, row) in self.df.iterrows()
+            self.tareas=[Tarea.from_record(row,self.area)  for (index, row) in self.df.iterrows()
                          if re.match(r'S-[0-9]{4}-[0-9]{5}.*' , row[h.NOMBRE]) and row[h.PROGRESO]!= h.COMPLETADA]
         
         return self.tareas

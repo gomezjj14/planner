@@ -51,12 +51,14 @@ class Planning:
         self.map_excel={}
         self.tareas=[]
         self.validaciones={}
-        
+        area1="Area 1"
+        area2="Area 2"
+
         c=config.Config()
         config.ConfigView(c)
         
-        self.planner= TareaDAOExcel(c.filenames[config.Filenames.PLANNER])
-        self.planner2= TareaDAOExcel(c.filenames[config.Filenames.PLANNER2])
+        self.planner= TareaDAOExcel(c.filenames[config.Filenames.PLANNER],area1)
+        self.planner2= TareaDAOExcel(c.filenames[config.Filenames.PLANNER2],area2)
         self.gestion = GestionDAOExcel(c.filenames[config.Filenames.GESTION])
         self.incurridos = IncurridosDAOExcel(c.filenames[config.Filenames.INCURRIDOS])
 
@@ -118,8 +120,8 @@ class Planning:
         
           
     def addValidaciones(self):
-        headers=["Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
-        validaciones=[[razon.what, razon.why, t.responsables.get("RF","") if t.responsables else "", t.codigo, t.descripcion, t.estado]  
+        headers=["Area","Razon","Info Razón","Resp. funcional", "Codigo", "Descripcion", "Estado"]
+        validaciones=[[t.area, razon.what, razon.why, t.responsables.get("RF","") if t.responsables else "", t.codigo, t.descripcion, t.estado]  
                   for validacion in self.validaciones.values()
                   for razon, t in validacion if t.estado in Tarea.estados() + ['PENDIENTE - IBD']]
                     
